@@ -192,53 +192,106 @@ export function VideoProcessor() {
 
     try {
       const ffmpeg = ffmpegRef.current
-      const inputExt = SUPPORTED_FORMATS[video.type as keyof typeof SUPPORTED_FORMATS]
-      const inputFileName = `input.${inputExt}`
-      const transcodedFileName = 'transcoded.mp4'
+      const inputFileName = video.type === 'video/mp4' ? 'input.mp4' : 'input.avi'
       const outputFileName = 'output.mp4'
       
       console.log('Writing input file...')
-      await ffmpeg.writeFile(inputFileName, await fetchFile(video))
-
-      // Transcode to MP4 if needed
-      if (inputExt !== 'mp4') {
-        console.log('Transcoding to MP4...')
-        await ffmpeg.exec(['-i', inputFileName, '-c:v', 'libx264', '-c:a', 'aac', transcodedFileName])
-        await ffmpeg.deleteFile(inputFileName)
-      }
-
-      const sourceFile = inputExt === 'mp4' ? inputFileName : transcodedFileName
+      const fileData = await fetchFile(video)
+      console.log('Input file size:', fileData.byteLength)
+      await ffmpeg.writeFile(inputFileName, fileData)
 
       // Prepare the FFmpeg command based on the selected effect
       let command: string[] = []
+      const baseFlags = [
+        '-preset', 'ultrafast',    // Fastest encoding preset
+        '-threads', '0',           // Use all available threads
+        '-movflags', '+faststart', // Enable fast start for web playback
+      ]
+
       switch (effect) {
         case 'sepia':
-          command = ['-i', sourceFile, '-vf', 'colorchannelmixer=.393:.769:.189:0:.349:.686:.168:0:.272:.534:.131:0', outputFileName]
+          command = [
+            '-i', inputFileName,
+            '-vf', 'colorchannelmixer=.393:.769:.189:0:.349:.686:.168:0:.272:.534:.131:0',
+            '-c:v', 'libx264',
+            ...baseFlags,
+            '-crf', '28',
+            '-c:a', 'copy',
+            '-y',
+            outputFileName
+          ]
           break
         case 'grayscale':
-          command = ['-i', sourceFile, '-vf', 'colorspace=gray', outputFileName]
+          command = [
+            '-i', inputFileName,
+            '-vf', 'format=gray',
+            '-c:v', 'libx264',
+            ...baseFlags,
+            '-crf', '28',
+            '-c:a', 'copy',
+            '-y',
+            outputFileName
+          ]
           break
         case 'vignette':
-          command = ['-i', sourceFile, '-vf', 'vignette=PI/4', outputFileName]
+          command = [
+            '-i', inputFileName,
+            '-vf', 'vignette=PI/4',
+            '-c:v', 'libx264',
+            '-c:a', 'aac',
+            '-y',
+            outputFileName
+          ]
           break
         case 'blur':
-          command = ['-i', sourceFile, '-vf', 'gblur=sigma=2', outputFileName]
+          command = [
+            '-i', inputFileName,
+            '-vf', 'gblur=sigma=2',
+            '-c:v', 'libx264',
+            '-c:a', 'aac',
+            '-y',
+            outputFileName
+          ]
           break
         default:
-          command = ['-i', sourceFile, '-c', 'copy', outputFileName]
+          command = [
+            '-i', inputFileName,
+            '-c:v', 'libx264',
+            ...baseFlags,
+            '-crf', '23',
+            '-c:a', 'aac',
+            '-strict', 'experimental',
+            '-y',
+            outputFileName
+          ]
       }
 
-      console.log('Applying effect...')
+      console.log('Applying effect with command:', command)
       await ffmpeg.exec(command)
-
-      // Clean up intermediate file if it exists
-      if (inputExt !== 'mp4') {
-        await ffmpeg.deleteFile(transcodedFileName)
-      }
 
       console.log('Reading output file...')
       const data = await ffmpeg.readFile(outputFileName)
-      const blob = new Blob([data instanceof Uint8Array ? data : new TextEncoder().encode(data)], { type: 'video/mp4' })
+      console.log('Output data type:', typeof data)
+      console.log('Output data length:', data instanceof Uint8Array ? data.length : 'not a Uint8Array')
+
+      if (!data) {
+        throw new Error('No output data received')
+      }
+
+      if (data.length === 0) {
+        throw new Error('Output file is empty')
+      }
+
+      const uint8Array = data instanceof Uint8Array ? data : new Uint8Array(data)
+      console.log('Uint8Array length:', uint8Array.length)
+
+      const blob = new Blob([uint8Array], { type: 'video/mp4' })
+      console.log('Blob size:', blob.size)
+      
+      if (blob.size === 0) {
+        throw new Error('Generated blob is empty')
+      }
+
       const url = URL.createObjectURL(blob)
 
       // Create and trigger download
@@ -248,7 +301,11 @@ export function VideoProcessor() {
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
-      URL.revokeObjectURL(url) // Clean up the URL object
+      URL.revokeObjectURL(url)
+
+      // Cleanup
+      await ffmpeg.deleteFile(inputFileName)
+      await ffmpeg.deleteFile(outputFileName)
 
       toast({
         title: "Success!",
@@ -258,7 +315,7 @@ export function VideoProcessor() {
       console.error('Processing error:', error)
       toast({
         title: "Error",
-        description: "Failed to process video",
+        description: "Failed to process video: " + (error instanceof Error ? error.message : String(error)),
         variant: "destructive"
       })
     } finally {
