@@ -1,5 +1,4 @@
-"use client"
-
+'use client'
 import { FFmpeg } from "@ffmpeg/ffmpeg"
 import { fetchFile, toBlobURL } from "@ffmpeg/util"
 import React, { useEffect, useRef, useState, useCallback } from 'react'
@@ -52,7 +51,9 @@ export function VideoProcessor() {
       const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd'
       const ffmpeg = ffmpegRef.current
       ffmpeg.on("progress", ({ progress }) => {
-        setProgress(Math.round(progress * 100))
+        const progressValue = Math.round(progress * 100)
+        setProgress(progressValue)
+        console.log('Progress:', progressValue)
       })
       ffmpeg.on("log", ({ message }) => {
         if (messageRef.current) messageRef.current.innerHTML = message
@@ -190,9 +191,16 @@ export function VideoProcessor() {
 
     setProcessing(true)
     setProgress(0)
+    console.log('Starting processing, progress:', progress)
 
     try {
       const ffmpeg = ffmpegRef.current
+      ffmpeg.on("progress", ({ progress }) => {
+        const progressValue = Math.round(progress * 100)
+        console.log('Progress update:', progressValue)
+        setProgress(progressValue)
+      })
+
       const inputFileName = video.type === 'video/mp4' ? 'input.mp4' : 'input.avi'
       const outputFileName = 'output.mp4'
       
@@ -322,6 +330,7 @@ export function VideoProcessor() {
     } finally {
       setProcessing(false)
       setProgress(100)
+      console.log('Processing complete, final progress:', progress)
     }
   }
 
@@ -404,13 +413,19 @@ export function VideoProcessor() {
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Select effect" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-background border rounded-md shadow-md min-w-[180px]">
                 {Object.entries(effects).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>{label}</SelectItem>
+                  <SelectItem 
+                    key={value} 
+                    value={value}
+                    className="hover:bg-accent focus:bg-accent cursor-pointer"
+                  >
+                    {label}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-
+            
             <Button 
               onClick={processVideo} 
               disabled={processing || !loaded}
@@ -422,7 +437,17 @@ export function VideoProcessor() {
           </div>
 
           {processing && (
-            <Progress value={progress} className="w-full" />
+            <div className="space-y-2 relative z-40 bg-background p-4 rounded-lg border">
+              <div className="flex justify-between text-sm font-medium">
+                <span>Processing video...</span>
+                <span>{progress}%</span>
+              </div>
+              <Progress 
+                value={progress} 
+                className="h-3"
+                aria-label="Processing progress"
+              />
+            </div>
           )}
           <p ref={messageRef} className="text-sm text-muted-foreground"></p>
         </div>
