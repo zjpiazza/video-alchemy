@@ -6,6 +6,7 @@ const nextConfig = {
       fs: false,
       path: false,
     };
+    config.module.exprContextCritical = false;
     return config;
   },
   async headers() {

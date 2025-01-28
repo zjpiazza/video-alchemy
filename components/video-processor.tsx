@@ -2,7 +2,7 @@
 
 import { FFmpeg } from "@ffmpeg/ffmpeg"
 import { fetchFile, toBlobURL } from "@ffmpeg/util"
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Card } from '@/components/ui/card'
@@ -38,10 +38,6 @@ export function VideoProcessor() {
   const [isTranscoding, setIsTranscoding] = useState(false)
 
   useEffect(() => {
-    load()
-  }, []) // Load FFmpeg on component mount
-
-  useEffect(() => {
     return () => {
       if (previewUrl) {
         URL.revokeObjectURL(previewUrl)
@@ -49,7 +45,7 @@ export function VideoProcessor() {
     }
   }, [previewUrl])
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (loaded) return
     setIsLoading(true)
     try {
@@ -79,9 +75,14 @@ export function VideoProcessor() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [loaded, toast])
 
-  const transcodeForPreview = async (file: File) => {
+  useEffect(() => {
+    load()
+  }, [load])
+
+
+  const transcodeForPreview = useCallback(async (file: File) => {
     setIsTranscoding(true)
     try {
       const ffmpeg = ffmpegRef.current
@@ -119,9 +120,9 @@ export function VideoProcessor() {
     } finally {
       setIsTranscoding(false)
     }
-  }
+  }, [])
 
-  const onDrop = React.useCallback(async (acceptedFiles: File[]) => {
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
     // Cleanup previous preview
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl)
@@ -282,7 +283,7 @@ export function VideoProcessor() {
         throw new Error('Output file is empty')
       }
 
-      const uint8Array = data instanceof Uint8Array ? data : new Uint8Array(data)
+      const uint8Array = data instanceof Uint8Array ? data : new Uint8Array(data as unknown as ArrayBuffer)
       console.log('Uint8Array length:', uint8Array.length)
 
       const blob = new Blob([uint8Array], { type: 'video/mp4' })
