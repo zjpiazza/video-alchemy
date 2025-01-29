@@ -4,6 +4,7 @@ import { ThemeProvider } from "@/components/ThemeProvider"
 import { Sparkles } from "lucide-react"
 import { ThemeToggle } from "@/components/ThemeToggle"
 import type { Metadata } from "next"
+import { Logo } from "@/components/logo"
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -39,9 +40,10 @@ export default function RootLayout({
 
                   <div className="text-center mb-12 space-y-4">
                     <div className="flex items-center justify-center gap-2 mb-4">
-                      <Sparkles className="w-6 h-6 text-primary" />
+                      <Logo className="w-10 h-10 text-primary" />
                       <h1 className="text-4xl font-bold">Video Alchemy</h1>
                     </div>
+
 
                     <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
                       Transform your videos with powerful effects - right in your browser

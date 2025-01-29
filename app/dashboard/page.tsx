@@ -6,10 +6,12 @@ import { createClient } from '@/utils/supabase/client'
 import { redirect } from 'next/navigation'
 import VideoProcessor from "@/components/video/VideoProcessor"
 import { useState, useEffect } from 'react'
+// import { LoadingAnimation } from "@/components/loadingAnimation"
 
 export default function ProtectedPage() {
   // Move auth check to a separate component or middleware since we're now client-side
   const checkAuth = async () => {
+
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
@@ -27,7 +29,11 @@ export default function ProtectedPage() {
 
       <div className="max-w-3xl mx-auto w-full px-4">
         <VideoProcessor />
+        {/* <LoadingAnimation /> */}
       </div>
     </div>
+
+
+
   )
 }
