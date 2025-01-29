@@ -12,12 +12,16 @@ export default function EffectSelector({ value, onChange }: EffectSelectorProps)
           value={value} 
           onValueChange={(value: string) => onChange(value as Effect)}
         >
-            <SelectTrigger className="bg-white">
+            <SelectTrigger className="w-full bg-background border-input">
                 <SelectValue placeholder="Select effect" />
             </SelectTrigger>
-            <SelectContent className="bg-white">
+            <SelectContent>
                 {Object.entries(effects).map(([key, effect]) => (
-                    <SelectItem key={key} value={key as Effect}>
+                    <SelectItem 
+                        key={key} 
+                        value={key as Effect}
+                        className="text-foreground"
+                    >
                         {effect.label}
                     </SelectItem>
                 ))}

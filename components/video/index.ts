@@ -1,1 +1,1 @@
-export { VideoProcessor } from './videoProcessor'
+export { VideoProcessor } from './VideoProcessor'

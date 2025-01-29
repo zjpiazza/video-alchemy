@@ -93,6 +93,7 @@ export const videoTransform = task({
                     '-movflags', '+faststart',
                     '-pix_fmt', 'yuv420p',
                     '-profile:v', 'main',
+                    '-threads', '0',
                     '-f', 'mp4'
                 ])
                 .on('progress', (progress: FFmpegProgress) => {
@@ -125,7 +126,7 @@ export const videoTransform = task({
         logger.log(`Video processed, uploading result`);
 
         // Upload the processed video
-        const processedPath = `${userId}/processed/${Date.now()}-${videoTitle}.mp4`;
+        const processedPath = `${userId}/processed/${Date.now()}-${videoTitle}`;
         const { error: uploadError } = await createClient<Database>(
             process.env.SUPABASE_PROJECT_URL as string,
             process.env.SUPABASE_SERVICE_ROLE_KEY as string

@@ -23,6 +23,6 @@ export default defineConfig({
       randomize: true,
     },
   },
-  machine: "medium-2x",
+  machine: "large-2x",
   dirs: ["trigger"],
 });

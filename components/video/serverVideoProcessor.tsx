@@ -11,6 +11,9 @@ import { effects, Effect } from './effects'
 import { v4 as uuidv4 } from 'uuid'
 import EffectSelector from './effectSelector'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ProcessingDescription } from './ProcessingDescription'
+import { VideoPlaceholder } from './VideoPlaceholder'
+
 
 interface TransformationStatus {
   id: string
@@ -22,8 +25,12 @@ interface TransformationStatus {
   status: string
 }
 
-export default function ServerVideoProcessor() {
-  const [video, setVideo] = useState<File | null>(null)
+interface ServerVideoProcessorProps {
+  getSignedUrl: (path: string) => Promise<string | null>
+}
+
+export default function ServerVideoProcessor({ getSignedUrl }: ServerVideoProcessorProps) {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [effect, setEffect] = useState<Effect>('none')
   const [uploadProgress, setUploadProgress] = useState(0)
   const [isUploading, setIsUploading] = useState(false)
@@ -33,7 +40,7 @@ export default function ServerVideoProcessor() {
   const [processedVideoUrl, setProcessedVideoUrl] = useState<string | null>(null)
   const supabase = createClient()
   const { toast } = useToast()
-  
+
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -42,12 +49,38 @@ export default function ServerVideoProcessor() {
     getUser()
   }, [supabase.auth])
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setSelectedFile(file)
+      
+      // Upload the file to Supabase storage
+      const filename = `${Date.now()}-${file.name}`
+      const { data, error } = await supabase.storage
+        .from('videos')
+        .upload(filename, file)
+
+      if (error) {
+        console.error('Error uploading file:', error)
+        return
+      }
+
+      // Get signed URL for preview
+      if (data?.path) {
+        const signedUrl = await getSignedUrl(data.path)
+        if (signedUrl) {
+          setPreviewUrl(signedUrl)
+        }
+      }
+    }
+  }
+
   const onDrop = async (acceptedFiles: File[]) => {
     if (acceptedFiles?.length) {
       const file = acceptedFiles[0]
 
       if (file.type.startsWith('video/')) {
-        setVideo(file)
+        setSelectedFile(file)
         const url = URL.createObjectURL(file)
         setPreviewUrl(url)
       } else {
@@ -62,7 +95,7 @@ export default function ServerVideoProcessor() {
   })
 
   const uploadVideo = async () => {
-    if (!video) return
+    if (!selectedFile) return
 
     try {
       setIsUploading(true)
@@ -70,10 +103,13 @@ export default function ServerVideoProcessor() {
       if (!user) throw new Error('Not authenticated')
 
       const fileName = `${user.id}/original/${uuidv4()}.mp4`
-      
+      console.log('Uploading video to:', fileName)
+
       const { data, error } = await supabase.storage
         .from('videos')
-        .upload(fileName, video, {
+
+
+        .upload(fileName, selectedFile, {
           // TODO: Add type for progress
           onUploadProgress: (progress: any) => {
             setUploadProgress((progress.loaded / progress.total) * 100)
@@ -99,25 +135,47 @@ export default function ServerVideoProcessor() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
 
-      const { data, error } = await supabase
-        .from('transformations')
-        .insert([
-          {
-            video_source_path: videoPath,
-            video_title: video?.name,
-            effect: effect,
-            status: 'pending',
-            user_id: user.id
-          }
-        ])
-        .select()
-        .single()
+      // Add retry logic with max 3 attempts
+      let attempts = 0;
+      const maxAttempts = 3;
+      
+      while (attempts < maxAttempts) {
+        try {
+          const { data, error } = await supabase
+            .from('transformations')
+            .insert([
+              {
+                video_source_path: videoPath,
+                video_title: selectedFile?.name,
+                effect: effect,
+                status: 'pending',
+                user_id: user.id
+              }
+            ])
+            .select()
+            .single()
 
-      if (error) throw error
-      setCurrentTransformation(data)
-    } catch (error) {
-      console.error(error)
-      toast({ title: "Error", description: "Failed to start transformation" })
+          if (error) throw error
+          setCurrentTransformation(data)
+          return // Success, exit the function
+        } catch (error: any) {
+          attempts++
+          if (error?.code === 'DatabaseTimeout' && attempts < maxAttempts) {
+            // Wait for 1 second before retrying
+            await new Promise(resolve => setTimeout(resolve, 1000))
+            continue
+          }
+          throw error // Rethrow if it's not a timeout or we've exceeded max attempts
+        }
+      }
+    } catch (error: any) {
+      console.error('Error details:', error)
+      toast({ 
+        title: "Error", 
+        description: error?.code === 'DatabaseTimeout' 
+          ? "Database connection timed out. Please try again."
+          : "Failed to start transformation"
+      })
     }
   }
 
@@ -145,15 +203,21 @@ export default function ServerVideoProcessor() {
         schema: 'public',
         table: 'transformations',
         filter: `id=eq.${currentTransformation.id}`,
-        // TODO: Add type for payload
       }, async (payload: any) => {
-        const newStatus = payload.new as TransformationStatus
-        setCurrentTransformation(newStatus)
-        if (newStatus.status === 'completed' && newStatus.video_transformed_path) {
-
-          const url = await getProcessedVideoUrl(newStatus.video_transformed_path)
-          setProcessedVideoUrl(url)
-          toast({ title: "Success", description: "Video processed successfully!" })
+        try {
+          const newStatus = payload.new as TransformationStatus
+          setCurrentTransformation(newStatus)
+          if (newStatus.status === 'completed' && newStatus.video_transformed_path) {
+            const url = await getProcessedVideoUrl(newStatus.video_transformed_path)
+            setProcessedVideoUrl(url)
+            toast({ title: "Success", description: "Video processed successfully!" })
+          }
+        } catch (error) {
+          console.error('Error in transformation subscription:', error)
+          toast({ 
+            title: "Error", 
+            description: "Failed to process transformation update" 
+          })
         }
       })
       .subscribe()
@@ -163,8 +227,18 @@ export default function ServerVideoProcessor() {
     }
   }, [currentTransformation?.id, supabase, toast])
 
+  useEffect(() => {
+    if (processedVideoUrl) {
+      getSignedUrl(processedVideoUrl).then(url => {
+        if (url) setProcessedVideoUrl(url);
+      });
+    }
+  }, [processedVideoUrl]);
+
   return (
     <Card className="p-6">
+      <ProcessingDescription type="server" />
+      
       <div {...getRootProps()} className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer">
         <input {...getInputProps()} />
         {isDragActive ? (
@@ -174,8 +248,8 @@ export default function ServerVideoProcessor() {
         )}
       </div>
 
-      {previewUrl && (
-        <div className="mt-4">
+      <div className="mt-4">
+        {previewUrl ? (
           <Tabs defaultValue="original" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="original">Original</TabsTrigger>
@@ -187,23 +261,25 @@ export default function ServerVideoProcessor() {
               </TabsTrigger>
             </TabsList>
             <TabsContent value="original">
-              <video src={previewUrl} controls className="w-full rounded-lg" />
+              <video src={previewUrl} controls className="w-full rounded-lg aspect-video" />
             </TabsContent>
             <TabsContent value="transformed">
               {processedVideoUrl ? (
-                <video src={processedVideoUrl} controls className="w-full rounded-lg" />
+                <video src={processedVideoUrl} controls className="w-full rounded-lg aspect-video" />
               ) : (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-muted-foreground">
                   Process the video to see the transformation
                 </div>
               )}
             </TabsContent>
           </Tabs>
-        </div>
-      )}
+        ) : (
+          <VideoPlaceholder />
+        )}
+      </div>
 
-      {video && (
-        <div className="mt-4 space-y-4 bg-gray-100 p-4 rounded-lg">
+      {selectedFile && (
+        <div className="mt-4 space-y-4 bg-card p-4 rounded-lg border">
           <EffectSelector 
             value={effect} 
             onChange={(value) => setEffect(value as Effect)}
