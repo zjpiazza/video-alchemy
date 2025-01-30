@@ -26,14 +26,6 @@ export default function TransformPage() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <div className="mb-8 space-y-4">
-        <h1 className="text-3xl font-bold">Transform Your Video</h1>
-        <p className="text-muted-foreground">
-          Choose an effect and transform your video right in your browser. 
-          Sign in to unlock cloud processing for more demanding transformations.
-        </p>
-      </div>
-      
       <VideoProcessor serverProcessingEnabled={isServerProcessingEnabled} />
     </div>
   )

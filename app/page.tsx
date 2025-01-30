@@ -87,9 +87,6 @@ export default async function LandingPage() {
         <p className="text-sm text-muted-foreground">
           Built with Next.js, Supabase, trigger.dev, ffmpeg.wasm, and a dash of dark magic 🧪
         </p>
-        <p className="text-sm text-muted-foreground">
-          {user?.email}
-        </p>
       </section>
     </div>
 
