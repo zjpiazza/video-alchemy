@@ -30,19 +30,21 @@ interface FFmpegProgress {
 export const videoTransform = task({
     id: "video-transform",
     run: async (payload: {
+        transformationId: string;
         videoPath: string;
-        userId: string;
-        videoTitle: string;
         transformations: TransformationOptions;
     }) => {
-        const { videoPath, userId, videoTitle, transformations } = payload;
+        const { videoPath, transformations, transformationId } = payload;
+
+        // Initialize Supabase client once
+        const supabase = createClient<Database>(
+            process.env.SUPABASE_PROJECT_URL as string,
+            process.env.SUPABASE_SERVICE_ROLE_KEY as string
+        );
 
         logger.log(`Downloading video: ${videoPath}`);
 
-        const { data: fileData, error: downloadError } = await createClient<Database>(
-            process.env.SUPABASE_PROJECT_URL as string,
-            process.env.SUPABASE_SERVICE_ROLE_KEY as string
-        )
+        const { data: fileData, error: downloadError } = await supabase
             .storage
             .from('videos')
             .download(videoPath);
@@ -59,13 +61,12 @@ export const videoTransform = task({
         // @ts-ignore
         await fs.promises.writeFile(inputPath, Buffer.from(await fileData.arrayBuffer()));
 
-
         logger.log(`Processing video with effect: ${transformations.effect}`);
 
         // Process the video using FFmpeg
         await new Promise<void>((resolve, reject) => {
             let lastLogTime = 0;
-            const THROTTLE_INTERVAL = 30000;
+            const THROTTLE_INTERVAL = 5000;
             let filterCommand: string;
             switch (transformations.effect) {
                 case 'sepia':
@@ -96,19 +97,37 @@ export const videoTransform = task({
                     '-threads', '0',
                     '-f', 'mp4'
                 ])
-                .on('progress', (progress: FFmpegProgress) => {
+                .on('start', () => {
+                    logger.log('FFmpeg processing started');
+                })
+                .on('progress', async (progress: FFmpegProgress) => {
                     const now = Date.now();
                     if (now - lastLogTime >= THROTTLE_INTERVAL) {
-                        logger.log(
-                            'FFmpeg Progress:\n' +
-                            `  Progress: ${progress.percent?.toFixed(1) || 'unknown'}%\n` +
-                            `  Frames: ${progress.frames}\n` +
-                            `  FPS: ${progress.currentFps}\n` +
-                            `  Speed: ${progress.currentKbps} kbps\n` +
-                            `  Size: ${(progress.targetSize / 1024).toFixed(2)} MB\n` +
-                            `  Time: ${progress.timemark}`
-                        );
-                        lastLogTime = now;
+                        try {
+                            logger.log('Updating database with progress...');
+                            const { error } = await supabase
+                                .from('transformations')
+                                .update({
+                                    status: 'processing',
+                                    progress: progress.percent || 0,
+                                    frames: progress.frames || 0,
+                                    fps: progress.currentFps || 0,
+                                    speed: progress.currentKbps || 0,
+                                    time: progress.timemark || '00:00:00',
+                                    size: progress.targetSize || 0
+                                })
+                                .eq('id', transformationId);
+
+                            if (error) {
+                                logger.error('Failed to update progress:', error);
+                            } else {
+                                logger.log('Progress update successful');
+                            }
+
+                            lastLogTime = now;
+                        } catch (error: any) {
+                            logger.error('Error updating progress:', error);
+                        }
                     }
                 })
                 .output(outputPath)
@@ -126,11 +145,8 @@ export const videoTransform = task({
         logger.log(`Video processed, uploading result`);
 
         // Upload the processed video
-        const processedPath = `${userId}/processed/${Date.now()}-${videoTitle}`;
-        const { error: uploadError } = await createClient<Database>(
-            process.env.SUPABASE_PROJECT_URL as string,
-            process.env.SUPABASE_SERVICE_ROLE_KEY as string
-        )
+        const processedPath = videoPath.replace('/original/', '/processed/');
+        const { error: uploadError } = await supabase
             .storage
             .from('videos')
             .upload(processedPath, await fs.promises.readFile(outputPath), {
@@ -143,13 +159,10 @@ export const videoTransform = task({
         }
 
         // Update the database
-        const { error: updateError } = await createClient<Database>(
-            process.env.SUPABASE_PROJECT_URL as string,
-            process.env.SUPABASE_SERVICE_ROLE_KEY as string
-        )
+        const { error: updateError } = await supabase
             .from('transformations')
             .update({ video_transformed_path: processedPath, status: 'completed' })
-            .eq('video_source_path', videoPath);
+            .eq('id', transformationId);
 
         if (updateError) {
             throw new Error(`Failed to update transformation record: ${updateError.message}`);

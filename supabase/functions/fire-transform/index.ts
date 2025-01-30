@@ -2,8 +2,9 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { tasks } from "npm:@trigger.dev/sdk@latest/v3";
 // Import the videoProcessAndUpdate task from the trigger folder
-import type { transformVideo } from "../../../trigger/transformVideo.js";
+import type { videoTransform } from "../../../trigger/transformVideo.js";
 //     👆 type only import
+
 
 // Sets up a Deno server that listens for incoming JSON requests
 Deno.serve(async (req) => {
@@ -14,12 +15,12 @@ Deno.serve(async (req) => {
 
   // Trigger the video transform task
   // TODO: Why does this not throw if no deployment is found?
-  await tasks.trigger<typeof transformVideo>("video-transform", {
+  await tasks.trigger<typeof videoTransform>("video-transform", {
+    transformationId: payload.record.id,
     videoPath: video_source_path,
-    userId: user_id,
-    videoTitle: video_title,
     transformations: { effect: effect } // Default effect, could be passed in payload
   });
+
 
   console.log('Triggered video transform for:', video_title);
   return new Response("ok");

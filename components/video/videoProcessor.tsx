@@ -43,6 +43,12 @@ interface TransformationStatus {
   user_id: string
   effect: string
   status: string
+  progress: number
+  frames: number
+  fps: number
+  speed: number
+  time: string
+  size: number
 }
 
 // Animation variants
@@ -227,24 +233,32 @@ function ProcessingStage({
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          {mode === 'client' ? (
-            <>
-              <div className="text-lg font-medium">Processing Video</div>
-              <ProcessingStats stats={metrics} />
-            </>
+          {isUploading ? (
+            <div className="space-y-2">
+              <Progress value={uploadProgress} />
+              <p className="text-sm text-center text-muted-foreground">
+                Uploading: {Math.round(uploadProgress)}%
+              </p>
+            </div>
           ) : (
             <>
-              {isUploading ? (
-                <div className="space-y-2">
-                  <Progress value={uploadProgress} />
-                  <p className="text-sm text-center text-muted-foreground">
-                    Uploading: {Math.round(uploadProgress)}%
-                  </p>
-                </div>
+              <div className="text-lg font-medium">
+                {mode === 'server' && transformation?.status === 'pending' 
+                  ? 'Video Queued for Processing'
+                  : 'Processing Video'
+                }
+              </div>
+              {mode === 'server' && transformation?.status === 'pending' ? (
+                <p className="text-sm text-muted-foreground">
+                  Your video is queued and will begin processing shortly...
+                </p>
               ) : (
-                <div className="text-sm text-muted-foreground">
-                  Status: {transformation?.status || 'Preparing...'}
-                </div>
+                <>
+                  <ProcessingStats stats={metrics} />
+                  <div className="text-sm text-muted-foreground">
+                    Status: {transformation?.status || 'Processing...'}
+                  </div>
+                </>
               )}
             </>
           )}
@@ -543,16 +557,32 @@ export default function VideoProcessor() {
   // Subscribe to server-side transformation updates
   useEffect(() => {
     if (mode === 'server' && transformation) {
+      console.log('Setting up subscription for transformation:', transformation.id) // Debug log
+
       const channel = supabase
-        .channel('transformations')
+        .channel(`transformation-${transformation.id}`) // Give unique channel name
         .on('postgres_changes', {
-          event: 'UPDATE',
+          event: '*', // Listen to all events to debug
           schema: 'public',
           table: 'transformations',
           filter: `id=eq.${transformation.id}`,
         }, async (payload: any) => {
+          console.log('Received update:', payload) // Debug log
+          
           const newStatus = payload.new as TransformationStatus
           setTransformation(newStatus)
+          
+          // Update processing metrics from transformation status
+          if (newStatus.status === 'processing') {
+            setProcessingMetrics({
+              progress: newStatus.progress || 0,
+              fps: newStatus.fps || 0,
+              time: newStatus.time || '00:00:00',
+              bitrate: `${newStatus.speed || 0} kbits/s`,
+              speed: '1.0',
+            })
+          }
+
           if (newStatus.status === 'completed' && newStatus.video_transformed_path) {
             const { data: { signedUrl } } = await supabase.storage
               .from('videos')
@@ -564,13 +594,17 @@ export default function VideoProcessor() {
             }
           }
         })
-        .subscribe()
+
+      channel.subscribe((status) => {
+        console.log('Subscription status:', status) // Debug log
+      })
 
       return () => {
+        console.log('Cleaning up subscription') // Debug log
         supabase.removeChannel(channel)
       }
     }
-  }, [mode, transformation?.id, supabase])
+  }, [mode, transformation?.id, supabase, goToStage])
 
   return (
     <Card className="p-6">
