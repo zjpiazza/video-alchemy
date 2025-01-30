@@ -3,7 +3,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { tasks } from "npm:@trigger.dev/sdk@latest/v3";
 // Import the videoProcessAndUpdate task from the trigger folder
 import type { videoTransform } from "../../../trigger/transformVideo.js";
-//     👆 type only import
+
 
 
 // Sets up a Deno server that listens for incoming JSON requests

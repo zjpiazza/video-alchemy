@@ -1,97 +1,112 @@
-import DeployButton from "../components/DeployButton";
-import AuthButton from "../components/AuthButton";
-import { createClient } from "@/utils/supabase/server";
-import HeroButtons from "../components/HeroButtons";
+import { Button } from "@/components/ui/button"
+import Link from "next/link"
+import { ArrowRight, Sparkles, Zap, Globe2, Cpu } from "lucide-react"
 
-export default async function Index() {
-  // const canInitSupabaseClient = () => {
-  //   // This function is just for the interactive tutorial.
-  //   // Feel free to remove it once you have Supabase connected.
-  //   try {
-  //     createClient();
-  //     return true;
-  //   } catch (e) {
-  //     return false;
-  //   }
-  // };
-
-  // const isSupabaseConnected = canInitSupabaseClient();
-
+export default function LandingPage() {
   return (
-    <div className="flex-1 w-full flex flex-col gap-20 items-center">
-      <nav className="w-full flex justify-center border-b border-b-foreground/10 h-16">
-        <div className="w-full max-w-4xl flex justify-between items-center p-3 text-sm">
-          <DeployButton />
-          {/* {isSupabaseConnected && <AuthButton />} */}
-        </div>
-      </nav>
-
+    <div className="flex flex-col gap-16 py-8">
       {/* Hero Section */}
-      <div className="max-w-4xl mx-auto text-center px-4">
-        <h1 className="text-5xl font-bold mb-6">Transform Your Videos with AI</h1>
-        <p className="text-xl text-gray-600 mb-8">
-          Powerful video processing tools powered by artificial intelligence
+      <section className="text-center space-y-8">
+        <h1 className="text-5xl font-bold tracking-tight">
+          Transform Your Videos with{' '}
+          <span className="text-primary">AI-Powered Effects</span>
+        </h1>
+        <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          Experience the future of video processing - powerful effects running directly in your browser,
+          with optional cloud processing for demanding transformations.
         </p>
-        {/* <HeroButtons isSupabaseConnected={isSupabaseConnected} /> */}
-      </div>
+        <div className="flex justify-center gap-4">
+          <Link href="/transform">
+            <Button size="lg" className="gap-2">
+              Start Transforming <ArrowRight className="w-4 h-4" />
+            </Button>
+          </Link>
+        </div>
+      </section>
 
-      {/* Features Section */}
-      <div id="features" className="max-w-4xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="text-center p-6 rounded-lg border border-foreground/10">
-          <h3 className="text-xl font-semibold mb-3">Video Processing</h3>
-          <p className="text-gray-600">
-            Process and analyze your videos with advanced AI algorithms
+      {/* Features Grid */}
+      <section className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+        <div className="space-y-4">
+          <div className="bg-primary/10 w-10 h-10 rounded-lg flex items-center justify-center">
+            <Sparkles className="w-5 h-5 text-primary" />
+          </div>
+          <h3 className="text-xl font-semibold">Client-Side Magic</h3>
+          <p className="text-muted-foreground">
+            Transform videos directly in your browser using WebAssembly-powered FFmpeg.
+            No uploads needed for basic transformations.
           </p>
         </div>
-        <div className="text-center p-6 rounded-lg border border-foreground/10">
-          <h3 className="text-xl font-semibold mb-3">Secure Storage</h3>
-          <p className="text-gray-600">
-            Your videos are stored securely with enterprise-grade encryption
+
+        <div className="space-y-4">
+          <div className="bg-primary/10 w-10 h-10 rounded-lg flex items-center justify-center">
+            <Zap className="w-5 h-5 text-primary" />
+          </div>
+          <h3 className="text-xl font-semibold">Cloud Processing</h3>
+          <p className="text-muted-foreground">
+            Need more power? Switch to cloud processing for demanding transformations
+            with our serverless infrastructure.
           </p>
         </div>
-        <div className="text-center p-6 rounded-lg border border-foreground/10">
-          <h3 className="text-xl font-semibold mb-3">Real-time Analysis</h3>
-          <p className="text-gray-600">
-            Get instant insights and processing results in real-time
+
+        <div className="space-y-4">
+          <div className="bg-primary/10 w-10 h-10 rounded-lg flex items-center justify-center">
+            <Globe2 className="w-5 h-5 text-primary" />
+          </div>
+          <h3 className="text-xl font-semibold">Universal Access</h3>
+          <p className="text-muted-foreground">
+            Works on any modern browser. No software installation required.
+            Process videos from any device, anywhere.
           </p>
         </div>
-      </div>
 
-      {/* How It Works Section */}
-      <div className="max-w-4xl mx-auto px-4 text-center">
-        <h2 className="text-3xl font-bold mb-8">How It Works</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div>
-            <div className="text-2xl font-bold mb-2">1</div>
-            <h3 className="text-xl font-semibold mb-2">Upload</h3>
-            <p className="text-gray-600">Upload your video file securely</p>
+        <div className="space-y-4">
+          <div className="bg-primary/10 w-10 h-10 rounded-lg flex items-center justify-center">
+            <Cpu className="w-5 h-5 text-primary" />
           </div>
-          <div>
-            <div className="text-2xl font-bold mb-2">2</div>
-            <h3 className="text-xl font-semibold mb-2">Process</h3>
-            <p className="text-gray-600">Our AI analyzes your video content</p>
-          </div>
-          <div>
-            <div className="text-2xl font-bold mb-2">3</div>
-            <h3 className="text-xl font-semibold mb-2">Results</h3>
-            <p className="text-gray-600">Get your processed video and insights</p>
-          </div>
+          <h3 className="text-xl font-semibold">Advanced Technology</h3>
+          <p className="text-muted-foreground">
+            Built with Next.js 14, Supabase, and FFmpeg WASM. Experience the cutting
+            edge of web technology.
+          </p>
         </div>
-      </div>
+      </section>
 
-      <footer className="w-full border-t border-t-foreground/10 p-8 flex justify-center text-center text-xs">
-        <p>
-          Powered by{" "}
-          <a
-            href="https://supabase.com/?utm_source=create-next-app&utm_medium=template&utm_term=nextjs"
-            target="_blank"
-            className="font-bold hover:underline"
-            rel="noreferrer"
-          >
-            Supabase
-          </a>
+      {/* Technical Showcase */}
+      <section className="max-w-4xl mx-auto text-center space-y-8">
+        <h2 className="text-3xl font-bold">Built with Modern Tech</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+          {[
+            "Next.js 14",
+            "FFmpeg WASM",
+            "Supabase",
+            "TypeScript",
+            "TailwindCSS",
+            "WebAssembly",
+            "Edge Functions",
+            "React Server Components"
+          ].map((tech) => (
+            <div 
+              key={tech}
+              className="bg-card p-4 rounded-lg border text-sm font-medium"
+            >
+              {tech}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="text-center space-y-6 max-w-3xl mx-auto">
+        <h2 className="text-3xl font-bold">Ready to Transform Your Videos?</h2>
+        <p className="text-lg text-muted-foreground">
+          Start with client-side processing for free, or sign up to unlock cloud processing capabilities.
         </p>
-      </footer>
+        <Link href="/transform">
+          <Button size="lg" className="gap-2">
+            Try It Now <ArrowRight className="w-4 h-4" />
+          </Button>
+        </Link>
+      </section>
     </div>
-  );
+  )
 }

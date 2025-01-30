@@ -31,18 +31,18 @@ export function LoadingAnimation({ showText = true }: LoadingAnimationProps) {
 
   useEffect(() => {
     if (svgRef.current) {
-      // Animate bubbles with varying sizes and speeds
+      // Animate bubbles with more pronounced movement
       anime({
         targets: '.bubble',
         translateY: function(el: Element) {
-          const baseDistance = -15
+          const baseDistance = -25  // Increased distance
           const scale = parseFloat(el.getAttribute('data-scale') || '1')
           return [0, baseDistance * scale]
         },
-        opacity: [1, 0],
+        opacity: [0.8, 0],  // Start more visible
         easing: 'easeInOutSine',
-        duration: function() { return anime.random(800, 1400) },
-        delay: anime.stagger(200),
+        duration: function() { return anime.random(1000, 1600) },  // Slower bubbles
+        delay: anime.stagger(150),  // Faster stagger
         loop: true
       })
 
@@ -50,7 +50,8 @@ export function LoadingAnimation({ showText = true }: LoadingAnimationProps) {
       const liquidTimeline = anime.timeline({
         loop: true,
         direction: 'alternate',
-        easing: 'easeInOutSine'
+        easing: 'easeInOutSine',
+        duration: 1000  // Consistent timing
       })
 
       const liquidPaths = [
@@ -65,11 +66,11 @@ export function LoadingAnimation({ showText = true }: LoadingAnimationProps) {
           targets: '.liquid',
           d: path,
           duration: 800,
-          endDelay: index === liquidPaths.length - 1 ? 400 : 0
+          endDelay: index === liquidPaths.length - 1 ? 200 : 0
         })
       })
 
-      // Enhanced flask movement
+      // Enhanced flask movement with more pronounced swaying
       const flaskTimeline = anime.timeline({
         loop: true,
         easing: 'easeInOutQuad'
@@ -78,33 +79,46 @@ export function LoadingAnimation({ showText = true }: LoadingAnimationProps) {
       flaskTimeline
         .add({
           targets: '.flask-container',
-          rotate: [-3, 3],
-          translateX: [-3, 3],
-          duration: 1000,
+          rotate: [-4, 4],  // More rotation
+          translateX: [-4, 4],  // More movement
+          duration: 1200,
           delay: 200
         })
         .add({
           targets: '.flask-container',
-          rotate: [3, -3],
-          translateX: [3, -3],
-          duration: 1000
+          rotate: [4, -4],
+          translateX: [4, -4],
+          duration: 1200
         })
         .add({
           targets: '.flask-container',
           rotate: 0,
           translateX: 0,
-          duration: 800
+          duration: 1000
         })
+
+      // Add sparkle animation
+      anime({
+        targets: '.fill-primary\\/30',  // Target sparkles
+        opacity: [0.2, 0.6],
+        scale: [1, 1.2],
+        easing: 'easeInOutSine',
+        duration: 1500,
+        delay: anime.stagger(200),
+        direction: 'alternate',
+        loop: true
+      })
     }
   }, [])
 
   return (
-    <div className="flex flex-col items-center justify-center w-full h-full min-h-[300px]">
-      <div className="flex flex-col md:flex-row items-center justify-center gap-8 w-full py-12 px-6">
-        <div className="flex-shrink-0">
+    <div className="aspect-video w-full bg-card/50 rounded-lg flex items-center justify-center">
+      <div className="flex flex-col items-center gap-8">
+        {/* Animation */}
+        <div className="w-40 md:w-48">
           <svg
             ref={svgRef}
-            className="w-40 h-40 md:w-48 md:h-48"
+            className="w-full h-full"
             viewBox="0 0 100 100"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
@@ -162,12 +176,14 @@ export function LoadingAnimation({ showText = true }: LoadingAnimationProps) {
             </g>
           </svg>
         </div>
+
+        {/* Text */}
         {showText && (
-          <div className="flex-grow text-center md:text-left">
-            <p className="text-xl md:text-2xl font-medium text-muted-foreground animate-pulse">
+          <div className="text-center space-y-2">
+            <p className="text-xl font-medium text-foreground/80 animate-pulse">
               {loadingMessages[messageIndex]}
             </p>
-            <p className="text-base md:text-lg text-muted-foreground/60 mt-3">
+            <p className="text-sm text-muted-foreground">
               This might take a moment...
             </p>
           </div>
@@ -176,3 +192,21 @@ export function LoadingAnimation({ showText = true }: LoadingAnimationProps) {
     </div>
   )
 }
+
+// Add this to your globals.css
+/*
+@keyframes progress {
+  0% {
+    width: 0%;
+    opacity: 1;
+  }
+  50% {
+    width: 100%;
+    opacity: 0.5;
+  }
+  100% {
+    width: 0%;
+    opacity: 1;
+  }
+}
+*/

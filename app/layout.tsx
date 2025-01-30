@@ -5,10 +5,14 @@ import { Sparkles } from "lucide-react"
 import { ThemeToggle } from "@/components/ThemeToggle"
 import type { Metadata } from "next"
 import { Logo } from "@/components/logo"
+import Navbar from "@/components/Navbar"
+import { Inter } from 'next/font/google'
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
   : "http://localhost:3000";
+
+const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
@@ -31,34 +35,17 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <div className="min-h-screen flex flex-col gradient-bg">
-            <div className="flex-grow">
-              <main className="flex flex-col items-center">
-                <div className="w-full max-w-7xl px-4">
-                  <div className="flex justify-end py-4">
-                    <ThemeToggle />
-                  </div>
-
-                  <div className="text-center mb-12 space-y-4">
-                    <div className="flex items-center justify-center gap-2 mb-4">
-                      <Logo className="w-10 h-10 text-primary" />
-                      <h1 className="text-4xl font-bold">Video Alchemy</h1>
-                    </div>
-
-
-                    <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                      Transform your videos with powerful effects - right in your browser
-                    </p>
-                  </div>
-                  {children}
-                </div>
-              </main>
-            </div>
-            
+            <Navbar />
+            <main className="flex-grow flex flex-col items-center">
+              <div className="w-full max-w-7xl px-4 py-8">
+                {children}
+              </div>
+            </main>
             <footer className="w-full border-t border-t-foreground/10 p-8 flex justify-center text-center text-xs">
               <p>
                 Powered by{' '}
                 <a
-                  href="https://supabase.com/?utm_source=create-next-app&utm_medium=template&utm_term=nextjs"
+                  href="https://supabase.com"
                   target="_blank"
                   className="font-bold hover:underline"
                   rel="noreferrer"

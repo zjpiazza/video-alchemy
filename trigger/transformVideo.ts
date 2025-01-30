@@ -158,14 +158,18 @@ export const videoTransform = task({
             throw new Error(`Failed to upload processed video: ${uploadError.message}`);
         }
 
-        // Update the database
-        const { error: updateError } = await supabase
-            .from('transformations')
-            .update({ video_transformed_path: processedPath, status: 'completed' })
-            .eq('id', transformationId);
+        // After successful processing and upload
+        const processedVideoSize = (await fs.promises.stat(outputPath)).size
 
-        if (updateError) {
-            throw new Error(`Failed to update transformation record: ${updateError.message}`);
+        // Use the database function to update both transformation and quota atomically
+        const { error: completionError } = await supabase.rpc('complete_transformation', {
+            p_transformation_id: transformationId,
+            p_output_path: processedPath,
+            p_size: processedVideoSize
+        });
+
+        if (completionError) {
+            throw new Error(`Failed to complete transformation: ${completionError.message}`);
         }
 
         // Cleanup temporary files

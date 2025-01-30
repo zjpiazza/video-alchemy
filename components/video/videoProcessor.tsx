@@ -88,11 +88,13 @@ const VIDEO_CONTAINER_CLASS = "w-full aspect-video rounded-lg overflow-hidden bg
 function ProcessingModeSelector({ 
   mode, 
   onModeChange,
-  disabled
+  serverDisabled,
+  disabled = false
 }: { 
   mode: ProcessingMode
   onModeChange: (mode: ProcessingMode) => void 
-  disabled: boolean
+  serverDisabled: boolean
+  disabled?: boolean
 }) {
   return (
     <div className="mb-12">
@@ -114,13 +116,31 @@ function ProcessingModeSelector({
           <TabsTrigger 
             value="server" 
             className="flex items-center gap-2"
-            disabled={disabled}
+            disabled={disabled || serverDisabled}
           >
             <Server className="h-4 w-4" />
-            Server Processing
+            {serverDisabled ? (
+              <div className="flex items-center gap-2">
+                Server Processing
+                <span className="text-xs bg-yellow-500/10 text-yellow-500 px-2 py-0.5 rounded">
+                  Sign in required
+                </span>
+              </div>
+            ) : (
+              "Server Processing"
+            )}
           </TabsTrigger>
         </TabsList>
       </Tabs>
+
+      {serverDisabled && mode === 'client' && (
+        <div className="text-sm text-muted-foreground mt-2">
+          <p>
+            Sign in to unlock server-side processing for more demanding transformations 
+            and higher quality outputs.
+          </p>
+        </div>
+      )}
     </div>
   )
 }
@@ -342,7 +362,11 @@ function CompleteStage({
   )
 }
 
-export default function VideoProcessor() {
+interface VideoProcessorProps {
+  serverProcessingEnabled: boolean
+}
+
+export default function VideoProcessor({ serverProcessingEnabled }: VideoProcessorProps) {
   const [stage, setStage] = useState<ProcessingStage>('upload')
   const [mode, setMode] = useState<ProcessingMode>('client')
   const [video, setVideo] = useState<File | null>(null)
@@ -383,9 +407,25 @@ export default function VideoProcessor() {
   }
 
   const handleModeChange = (newMode: ProcessingMode) => {
+    // Force client mode if server processing is not enabled
+    if (!serverProcessingEnabled && newMode === 'server') {
+      toast({
+        title: "Server Processing Unavailable",
+        description: "Please sign in to use server-side processing",
+        variant: "destructive"
+      })
+      return
+    }
     setMode(newMode)
     resetState()
   }
+
+  // Ensure we start in client mode if server processing is disabled
+  useEffect(() => {
+    if (!serverProcessingEnabled && mode === 'server') {
+      setMode('client')
+    }
+  }, [serverProcessingEnabled, mode])
 
   const resetState = useCallback(() => {
     setVideo(null)
@@ -510,6 +550,16 @@ export default function VideoProcessor() {
   const processVideo = async () => {
     if (!video) return
     
+    // Prevent server-side processing if not enabled
+    if (mode === 'server' && !serverProcessingEnabled) {
+      toast({ 
+        title: "Server Processing Unavailable", 
+        description: "Please sign in to use server-side processing",
+        variant: "destructive"
+      })
+      return
+    }
+
     // Reset metrics before starting new transformation
     setProcessingMetrics({
       type: mode === 'client' ? 'client' : 'server',
@@ -523,19 +573,6 @@ export default function VideoProcessor() {
       })
     })
     
-    if (mode === 'client' && (!ffmpegRef.current || !isFFmpegReady)) {
-      try {
-        await initFFmpeg()
-      } catch (error) {
-        toast({ 
-          title: "Error", 
-          description: "FFmpeg failed to initialize. Please try again.",
-          variant: "destructive"
-        })
-        return
-      }
-    }
-
     goToStage('processing')
     setIsProcessing(true)
     
@@ -568,6 +605,7 @@ export default function VideoProcessor() {
         const data = await ffmpeg.readFile(outputFileName) as any
         const url = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }))
         setProcessedVideoUrl(url)
+        
         goToStage('complete')
 
         await ffmpeg.deleteFile(inputFileName)
@@ -581,7 +619,7 @@ export default function VideoProcessor() {
         })
         goToStage('upload')
       }
-    } else {
+    } else if (mode === 'server' && serverProcessingEnabled) {
       try {
         setIsUploading(true)
         const { data: { user } } = await supabase.auth.getUser()
@@ -689,6 +727,7 @@ export default function VideoProcessor() {
       <ProcessingModeSelector 
         mode={mode}
         onModeChange={handleModeChange}
+        serverDisabled={!serverProcessingEnabled}
         disabled={stage !== 'upload'}
       />
 
