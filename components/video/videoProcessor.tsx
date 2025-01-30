@@ -20,6 +20,7 @@ import { ProcessingDescription } from './ProcessingDescription'
 import { LoadingAnimation } from '@/components/loadingAnimation'
 import { Progress } from '@/components/ui/progress'
 import { ProcessingStats } from './ProcessingStats'
+import * as tus from 'tus-js-client'
 
 
 // Types
@@ -27,13 +28,23 @@ type ProcessingStage = 'upload' | 'processing' | 'complete'
 type ProcessingMode = 'client' | 'server'
 
 
-interface ProcessingMetrics {
+interface ClientProcessingMetrics {
+  type: 'client'
   progress: number
-  fps: number
   time: string
-  bitrate: string
-  speed: string
 }
+
+interface ServerProcessingMetrics {
+  type: 'server'
+  progress: number
+  time: string
+  fps: number
+  speed: number
+  frames: number
+  size: number
+}
+
+type ProcessingMetrics = ClientProcessingMetrics | ServerProcessingMetrics
 
 interface TransformationStatus {
   id: string
@@ -49,6 +60,12 @@ interface TransformationStatus {
   speed: number
   time: string
   size: number
+}
+
+interface UploadProgressState {
+  bytesUploaded: number;
+  bytesTotal: number;
+  percentage: number;
 }
 
 // Animation variants
@@ -67,10 +84,12 @@ const fadeVariants = {
 // Mode selector component
 function ProcessingModeSelector({ 
   mode, 
-  onModeChange 
+  onModeChange,
+  disabled
 }: { 
   mode: ProcessingMode
   onModeChange: (mode: ProcessingMode) => void 
+  disabled: boolean
 }) {
   return (
     <div className="mb-12">
@@ -78,19 +97,27 @@ function ProcessingModeSelector({
         value={mode}
         onValueChange={(value) => onModeChange(value as ProcessingMode)}
         className="mb-6"
+        disabled={disabled}
       >
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="client" className="flex items-center gap-2">
+          <TabsTrigger 
+            value="client" 
+            className="flex items-center gap-2"
+            disabled={disabled}
+          >
             <Laptop className="h-4 w-4" />
             Client Processing
           </TabsTrigger>
-          <TabsTrigger value="server" className="flex items-center gap-2">
+          <TabsTrigger 
+            value="server" 
+            className="flex items-center gap-2"
+            disabled={disabled}
+          >
             <Server className="h-4 w-4" />
             Server Processing
           </TabsTrigger>
         </TabsList>
       </Tabs>
-      <ProcessingDescription type={mode} />
     </div>
   )
 }
@@ -228,7 +255,7 @@ function ProcessingStage({
         <LoadingAnimation />
         
         <motion.div 
-          className="space-y-4 text-center"
+          className="space-y-4"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
@@ -241,32 +268,29 @@ function ProcessingStage({
               </p>
             </div>
           ) : (
-            <>
-              <div className="text-lg font-medium">
+            <Card className="p-4">
+              <div className="text-lg font-medium text-center">
                 {mode === 'server' && transformation?.status === 'pending' 
                   ? 'Video Queued for Processing'
                   : 'Processing Video'
                 }
               </div>
               {mode === 'server' && transformation?.status === 'pending' ? (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground text-center mt-2">
                   Your video is queued and will begin processing shortly...
                 </p>
               ) : (
                 <>
                   <ProcessingStats stats={metrics} />
-                  <div className="text-sm text-muted-foreground">
-                    Status: {transformation?.status || 'Processing...'}
-                  </div>
                 </>
               )}
-            </>
+            </Card>
           )}
           
           <Button 
             variant="destructive"
             onClick={onCancel}
-            className="mt-4"
+            className="w-full"
           >
             Cancel Processing
           </Button>
@@ -353,17 +377,20 @@ export default function VideoProcessor() {
 
   // Processing state
   const [processingMetrics, setProcessingMetrics] = useState<ProcessingMetrics>({
+    type: 'client',
     progress: 0,
-    fps: 0,
-    time: '00:00:00',
-    bitrate: '0 kbits/s',
-    speed: '0',
+    time: '00:00:00'
   })
 
   // Server-specific state
   const supabase = createClient()
   const [isUploading, setIsUploading] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState(0)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<UploadProgressState>({
+    bytesUploaded: 0,
+    bytesTotal: 0,
+    percentage: 0
+  })
   const [transformation, setTransformation] = useState<TransformationStatus | null>(null)
   
   // FFmpeg initialization
@@ -371,6 +398,9 @@ export default function VideoProcessor() {
   const { toast } = useToast()
 
   const goToStage = (newStage: ProcessingStage) => {
+    if (newStage === 'upload') {
+      resetState()
+    }
     setStage(newStage)
   }
 
@@ -385,15 +415,18 @@ export default function VideoProcessor() {
     setEffect('none')
     setProcessedVideoUrl(null)
     setProcessingMetrics({
+      type: 'client',
       progress: 0,
-      fps: 0,
-      time: '00:00:00',
-      bitrate: '0 kbits/s',
-      speed: '0',
+      time: '00:00:00'
     })
     setTransformation(null)
     setIsUploading(false)
-    setUploadProgress(0)
+    setIsProcessing(false)
+    setUploadProgress({
+      bytesUploaded: 0,
+      bytesTotal: 0,
+      percentage: 0
+    })
   }, [])
 
   const handleFileSelect = useCallback((file: File) => {
@@ -401,10 +434,59 @@ export default function VideoProcessor() {
     setPreviewUrl(URL.createObjectURL(file))
   }, [])
 
+  const uploadToStorage = async (file: File, fileName: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('No session found');
+
+    return new Promise((resolve, reject) => {
+      const upload = new tus.Upload(file, {
+        endpoint: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/upload/resumable`,
+        retryDelays: [0, 3000, 5000, 10000, 20000],
+        headers: {
+          authorization: `Bearer ${session.access_token}`,
+          'x-upsert': 'true',
+        },
+        uploadDataDuringCreation: true,
+        removeFingerprintOnSuccess: true,
+        metadata: {
+          bucketName: 'videos',
+          objectName: fileName,
+          contentType: file.type,
+          cacheControl: '3600',
+        },
+        chunkSize: 6 * 1024 * 1024,
+        onError: (error) => {
+          console.error('Upload failed:', error);
+          reject(error);
+        },
+        onProgress: (bytesUploaded, bytesTotal) => {
+          const percentage = ((bytesUploaded / bytesTotal) * 100).toFixed(2);
+          setUploadProgress({
+            bytesUploaded,
+            bytesTotal,
+            percentage: parseFloat(percentage)
+          });
+        },
+        onSuccess: () => {
+          console.log('Upload completed');
+          resolve(fileName);
+        },
+      });
+
+      upload.findPreviousUploads().then((previousUploads) => {
+        if (previousUploads.length) {
+          upload.resumeFromPreviousUpload(previousUploads[0]);
+        }
+        upload.start();
+      });
+    });
+  };
+
   const processVideo = async () => {
     if (!video) return
     
     goToStage('processing')
+    setIsProcessing(true)
     
     if (mode === 'client') {
       if (!ffmpegRef.current) {
@@ -439,46 +521,38 @@ export default function VideoProcessor() {
 
         await ffmpeg.deleteFile(inputFileName)
         await ffmpeg.deleteFile(outputFileName)
-        } catch (error) {
+      } catch (error) {
         console.error('Processing error:', error)
-          toast({ 
-            title: "Error", 
+        toast({ 
+          title: "Error", 
           description: "Failed to process video",
           variant: "destructive"
         })
         goToStage('upload')
       }
-      } else {
-    try {
-      setIsUploading(true)
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not authenticated')
+    } else {
+      try {
+        setIsUploading(true)
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) throw new Error('Not authenticated')
 
-      const fileName = `${user.id}/original/${uuidv4()}.mp4`
-      const { data, error } = await supabase.storage
-        .from('videos')
-        .upload(fileName, video, {
-            onUploadProgress: (progress) => {
-            setUploadProgress((progress.loaded / progress.total) * 100)
-          },
-        })
-
-      if (error) throw error
-      
+        const fileName = `${user.id}/original/${uuidv4()}.mp4`
+        await uploadToStorage(video, fileName)
+        
         const { data: transformData } = await supabase
-        .from('transformations')
-        .insert([{
-            video_source_path: data.path,
-          effect: effect,
-          status: 'pending',
-          user_id: user.id
-        }])
-        .select()
-        .single()
+          .from('transformations')
+          .insert([{
+              video_source_path: fileName,
+            effect: effect,
+            status: 'pending',
+            user_id: user.id
+          }])
+          .select()
+          .single()
 
-        setTransformation(transformData)
-    } catch (error) {
-      console.error('Error:', error)
+          setTransformation(transformData)
+      } catch (error) {
+        console.error('Error:', error)
         toast({ 
           title: "Error", 
           description: "Failed to process video",
@@ -487,9 +561,9 @@ export default function VideoProcessor() {
         goToStage('upload')
       } finally {
         setIsUploading(false)
-        setUploadProgress(0)
       }
     }
+    setIsProcessing(false)
   }
 
   const handleCancel = useCallback(() => {
@@ -498,37 +572,25 @@ export default function VideoProcessor() {
     }
     goToStage('upload')
     toast({ title: "Cancelled", description: "Video processing cancelled" })
-  }, [mode, toast])
+  }, [mode, toast, goToStage])
 
   const handleRestart = useCallback(() => {
     resetState()
     goToStage('upload')
   }, [resetState])
 
-  const initFFmpeg = async () => {
+  const initFFmpeg = useCallback(async () => {
     try {
       const ffmpeg = new FFmpeg()
       const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd'
       
-      ffmpeg.on('progress', ({ progress, time }) => {
-        const progressValue = Math.min(100, Math.max(0, Math.round(progress * 100)))
+      ffmpeg.on('progress', (event) => {
+        const progressValue = Math.min(100, Math.max(0, Math.round(event.progress * 100)))
         
-        // Add validation for time value
-        let timeString = '00:00:00'
-        if (typeof time === 'number' && !isNaN(time) && isFinite(time)) {
-          try {
-            // Convert seconds to milliseconds and ensure it's not negative
-            const timeMs = Math.max(0, time * 1000)
-            timeString = new Date(timeMs).toISOString().substr(11, 8)
-          } catch (error) {
-            console.warn('Invalid time value received:', time)
-          }
-        }
-
         setProcessingMetrics(prev => ({
-          ...prev,
+          type: 'client',
           progress: progressValue,
-          time: timeString
+          time: String(event.time || '00:00:00')
         }))
       })
       
@@ -545,14 +607,14 @@ export default function VideoProcessor() {
         description: "Failed to initialize video processor" 
       })
     }
-  }
+  }, [toast])
 
   // Initialize FFmpeg for client-side processing
   useEffect(() => {
-    if (mode === 'client' && !ffmpegRef.current) {
+    if (!ffmpegRef.current) {
       initFFmpeg()
     }
-  }, [mode])
+  }, [initFFmpeg])
 
   // Subscribe to server-side transformation updates
   useEffect(() => {
@@ -575,11 +637,13 @@ export default function VideoProcessor() {
           // Update processing metrics from transformation status
           if (newStatus.status === 'processing') {
             setProcessingMetrics({
+              type: 'server',
               progress: newStatus.progress || 0,
-              fps: newStatus.fps || 0,
               time: newStatus.time || '00:00:00',
-              bitrate: `${newStatus.speed || 0} kbits/s`,
-              speed: '1.0',
+              fps: newStatus.fps || 0,
+              speed: newStatus.speed || 0,
+              frames: newStatus.frames || 0,
+              size: newStatus.size || 0
             })
           }
 
@@ -611,7 +675,12 @@ export default function VideoProcessor() {
       <ProcessingModeSelector 
         mode={mode}
         onModeChange={handleModeChange}
+        disabled={stage !== 'upload'}
       />
+
+      <ProcessingDescription 
+          type={mode}
+        />
 
       <div className="relative h-[500px]">
         <AnimatePresence mode="wait">
@@ -631,7 +700,7 @@ export default function VideoProcessor() {
               mode={mode}
               metrics={processingMetrics}
               isUploading={isUploading}
-              uploadProgress={uploadProgress}
+              uploadProgress={uploadProgress.percentage}
               transformation={transformation}
               onCancel={handleCancel}
             />
