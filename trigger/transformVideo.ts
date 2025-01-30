@@ -1,6 +1,6 @@
 // @ts-ignore
 // TODO: Fix this?
-import { createClient } from "@/utils/supabase/client"
+import { createClient } from "@supabase/supabase-js"
 import ffmpeg from "fluent-ffmpeg"
 import fs from "fs"
 import path from "path"
@@ -37,7 +37,10 @@ export const videoTransform = task({
         const { videoPath, transformations, transformationId } = payload;
 
         // Initialize Supabase client once
-        const supabase = createClient()
+        const supabase = createClient<Database>(
+            process.env.SUPABASE_PROJECT_URL as string,
+            process.env.SUPABASE_SERVICE_ROLE_KEY as string
+        );
 
         logger.log(`Downloading video: ${videoPath}`);
 
@@ -160,14 +163,17 @@ export const videoTransform = task({
 
         // Use the database function to update both transformation and quota atomically
         const { error: completionError } = await supabase.rpc('complete_transformation', {
-            p_transformation_id: transformationId,
+            p_transformation_id: parseInt(transformationId),
             p_output_path: processedPath,
             p_size: processedVideoSize
         });
 
         if (completionError) {
+            logger.error('Complete transformation error:', completionError);
             throw new Error(`Failed to complete transformation: ${completionError.message}`);
         }
+
+        logger.log('Successfully completed transformation');
 
         // Cleanup temporary files
         await fs.promises.unlink(inputPath);

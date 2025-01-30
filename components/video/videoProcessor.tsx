@@ -48,8 +48,8 @@ type ProcessingMetrics = ClientProcessingMetrics | ServerProcessingMetrics
 
 interface TransformationStatus {
   id: string
-  video_source_path: string
-  video_transformed_path: string | null
+  source_path: string
+  transformed_path: string | null
   created_at: string
   user_id: string
   effect: string
@@ -650,7 +650,7 @@ export function VideoProcessor({ serverProcessingEnabled }: VideoProcessorProps)
         const { data: transformData } = await supabase
           .from('transformations')
           .insert([{
-              video_source_path: fileName,
+            source_path: fileName,
             effect: effect,
             status: 'pending',
             user_id: user.id
@@ -717,11 +717,10 @@ export function VideoProcessor({ serverProcessingEnabled }: VideoProcessorProps)
             })
           }
 
-          if (newStatus.status === 'completed' && newStatus.video_transformed_path) {
+          if (newStatus.status === 'completed' && newStatus.transformed_path) {
             const { data: { signedUrl } } = await supabase.storage
               .from('videos')
-              .createSignedUrl(newStatus.video_transformed_path, 3600)
-            
+              .createSignedUrl(newStatus.transformed_path, 3600)
             if (signedUrl) {
               setProcessedVideoUrl(signedUrl)
               goToStage('complete')
