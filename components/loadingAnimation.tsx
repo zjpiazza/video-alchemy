@@ -99,80 +99,80 @@ export function LoadingAnimation({ showText = true }: LoadingAnimationProps) {
   }, [])
 
   return (
-    <Card className="p-8">
-    <div className="flex flex-col md:flex-row items-center justify-center gap-6 w-full py-4 px-6">
-      <div className="flex-shrink-0">
-        <svg
-          ref={svgRef}
-          className="w-24 h-24 md:w-32 md:h-32"
-          viewBox="0 0 100 100"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <g className="flask-container" style={{ transformOrigin: 'center' }}>
-            {/* Cork stopper */}
-            <path
-              d="M36,15 L44,15 L44,20 Q40,22 36,20 Z"
-              className="fill-primary"
-            />
-            <path
-              d="M38,20 L42,20 L42,25 Q40,27 38,25 Z"
-              className="fill-primary/80"
-            />
-
-            {/* Flask neck */}
-            <path
-              d="M35,25 L45,25 L45,35 Q40,37 35,35 Z"
-              className="fill-background stroke-primary"
-              strokeWidth="2"
-            />
-
-            {/* Conical Flask */}
-            <path
-              d="M35,35 L45,35 L60,85 Q60,95 40,95 Q20,95 20,85 L35,35"
-              className="fill-background stroke-primary"
-              strokeWidth="2"
-              strokeLinejoin="round"
-            />
-
-            {/* Liquid mask */}
-            <clipPath id="liquidMask">
-              <path d="M20,85 C20,85 25,60 40,60 C55,60 60,85 60,85 Q60,90 40,90 Q20,90 20,85 Z" />
-            </clipPath>
-
-            {/* Liquid and bubbles */}
-            <g clipPath="url(#liquidMask)">
+    <div className="flex flex-col items-center justify-center w-full h-full min-h-[300px]">
+      <div className="flex flex-col md:flex-row items-center justify-center gap-8 w-full py-12 px-6">
+        <div className="flex-shrink-0">
+          <svg
+            ref={svgRef}
+            className="w-40 h-40 md:w-48 md:h-48"
+            viewBox="0 0 100 100"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <g className="flask-container" style={{ transformOrigin: 'center' }}>
+              {/* Cork stopper */}
               <path
-                className="liquid fill-primary/50"
-                d="M20,85 C20,85 25,60 40,60 C55,60 60,85 60,85 Q60,90 40,90 Q20,90 20,85 Z"
+                d="M36,15 L44,15 L44,20 Q40,22 36,20 Z"
+                className="fill-primary"
               />
-              
-              {/* Bubbles with varying sizes */}
-              <circle className="bubble fill-primary" cx="30" cy="70" r="2.5" data-scale="1.2" />
-              <circle className="bubble fill-primary" cx="45" cy="65" r="2" data-scale="0.9" />
-              <circle className="bubble fill-primary" cx="35" cy="75" r="1.5" data-scale="1.1" />
-              <circle className="bubble fill-primary" cx="50" cy="72" r="1.8" data-scale="1" />
-              <circle className="bubble fill-primary" cx="40" cy="68" r="1.2" data-scale="0.8" />
-            </g>
+              <path
+                d="M38,20 L42,20 L42,25 Q40,27 38,25 Z"
+                className="fill-primary/80"
+              />
 
-            {/* Sparkles */}
-            <circle cx="48" cy="45" r="1" className="fill-primary/30" />
-            <circle cx="53" cy="50" r="0.8" className="fill-primary/30" />
-            <circle cx="46" cy="55" r="1.2" className="fill-primary/30" />
-          </g>
-        </svg>
-      </div>
-      {showText && (
-        <div className="flex-grow text-center md:text-left">
-          <p className="text-base md:text-lg font-medium text-muted-foreground animate-pulse">
-            {loadingMessages[messageIndex]}
-          </p>
-          <p className="text-sm text-muted-foreground/60 mt-1">
-            This might take a moment...
-          </p>
+              {/* Flask neck */}
+              <path
+                d="M35,25 L45,25 L45,35 Q40,37 35,35 Z"
+                className="fill-background stroke-primary"
+                strokeWidth="2"
+              />
+
+              {/* Conical Flask */}
+              <path
+                d="M35,35 L45,35 L60,85 Q60,95 40,95 Q20,95 20,85 L35,35"
+                className="fill-background stroke-primary"
+                strokeWidth="2"
+                strokeLinejoin="round"
+              />
+
+              {/* Liquid mask */}
+              <clipPath id="liquidMask">
+                <path d="M20,85 C20,85 25,60 40,60 C55,60 60,85 60,85 Q60,90 40,90 Q20,90 20,85 Z" />
+              </clipPath>
+
+              {/* Liquid and bubbles */}
+              <g clipPath="url(#liquidMask)">
+                <path
+                  className="liquid fill-primary/50"
+                  d="M20,85 C20,85 25,60 40,60 C55,60 60,85 60,85 Q60,90 40,90 Q20,90 20,85 Z"
+                />
+                
+                {/* Bubbles with varying sizes */}
+                <circle className="bubble fill-primary" cx="30" cy="70" r="2.5" data-scale="1.2" />
+                <circle className="bubble fill-primary" cx="45" cy="65" r="2" data-scale="0.9" />
+                <circle className="bubble fill-primary" cx="35" cy="75" r="1.5" data-scale="1.1" />
+                <circle className="bubble fill-primary" cx="47" cy="72" r="1.8" data-scale="1" />
+                <circle className="bubble fill-primary" cx="40" cy="68" r="1.2" data-scale="0.8" />
+              </g>
+
+              {/* Sparkles */}
+              <circle cx="48" cy="45" r="1" className="fill-primary/30" />
+              <circle cx="53" cy="50" r="0.8" className="fill-primary/30" />
+              <circle cx="46" cy="55" r="1.2" className="fill-primary/30" />
+            </g>
+          </svg>
         </div>
-      )}
+        {showText && (
+          <div className="flex-grow text-center md:text-left">
+            <p className="text-xl md:text-2xl font-medium text-muted-foreground animate-pulse">
+              {loadingMessages[messageIndex]}
+            </p>
+            <p className="text-base md:text-lg text-muted-foreground/60 mt-3">
+              This might take a moment...
+            </p>
+          </div>
+        )}
+      </div>
     </div>
-    </Card>
   )
 }

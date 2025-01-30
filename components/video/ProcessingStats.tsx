@@ -21,7 +21,7 @@ export function ProcessingStats({ stats }: ProcessingStatsProps) {
       <div className="space-y-2">
         <Progress value={stats.progress} />
         <p className="text-sm text-center text-muted-foreground">
-          {stats.progress}% Complete
+          {Math.round(stats.progress)}% Complete
         </p>
       </div>
     )
@@ -32,7 +32,7 @@ export function ProcessingStats({ stats }: ProcessingStatsProps) {
       <div className="space-y-2">
         <Progress value={stats.progress} />
         <p className="text-sm text-center text-muted-foreground">
-          {stats.progress}% Complete
+          {Math.round(stats.progress)}% Complete
         </p>
       </div>
 

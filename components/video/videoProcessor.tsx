@@ -81,6 +81,9 @@ const fadeVariants = {
   }
 }
 
+// Add a consistent aspect ratio wrapper class
+const VIDEO_CONTAINER_CLASS = "w-full aspect-video rounded-lg overflow-hidden bg-muted"
+
 // Mode selector component
 function ProcessingModeSelector({ 
   mode, 
@@ -146,81 +149,72 @@ function UploadStage({
   })
 
   return (
-    <motion.div
-      variants={fadeVariants}
-      initial="enter"
-      animate="center"
-      exit="exit"
-      transition={{
-        opacity: { duration: 0.2 }
-      }}
-      className="absolute w-full"
-    >
-      <div className="space-y-6">
-        {!previewUrl ? (
-          <div 
-            {...getRootProps()} 
-            className={cn(
-              "drop-zone rounded-lg p-8 text-center cursor-pointer transition-colors min-h-[400px]",
-              "border-2 border-dashed hover:border-primary",
-              "flex flex-col items-center justify-center gap-4",
-              isDragActive && "border-primary border-opacity-100"
-            )}
+    <div className="space-y-6">
+      {!previewUrl ? (
+        <div 
+          {...getRootProps()} 
+          className={cn(
+            VIDEO_CONTAINER_CLASS,
+            "drop-zone p-8 text-center cursor-pointer transition-colors",
+            "border-2 border-dashed hover:border-primary",
+            "flex flex-col items-center justify-center gap-4",
+            isDragActive && "border-primary border-opacity-100"
+          )}
+        >
+          <input {...getInputProps()} />
+          <motion.div
+            initial={{ scale: 1 }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="text-center"
           >
-            <input {...getInputProps()} />
-            <motion.div
-              initial={{ scale: 1 }}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="text-center"
-            >
-              <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground text-lg">
-                {isDragActive ? "Drop the video here ..." : "Drag & drop a video here, or click to select one"}
-              </p>
-              <p className="text-sm text-muted-foreground mt-2">
-                Supports MP4, WebM, and MOV formats
-              </p>
-            </motion.div>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.3 }}
-            >
-              <video 
-                src={previewUrl} 
-                controls 
-                className="w-full rounded-lg aspect-video"
-              />
-            </motion.div>
+            <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground text-lg">
+              {isDragActive ? "Drop the video here ..." : "Drag & drop a video here, or click to select one"}
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Supports MP4, WebM, and MOV formats
+            </p>
+          </motion.div>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className={VIDEO_CONTAINER_CLASS}
+          >
+            <video 
+              src={previewUrl} 
+              controls 
+              className="w-full h-full object-contain"
+            />
+          </motion.div>
+          
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="space-y-4"
+          >
+            <EffectSelector 
+              value={effect}
+              onChange={(value) => onEffectChange(value as Effect)}
+            />
             
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="space-y-4"
+            <Button 
+              onClick={onProcess}
+              disabled={effect === 'none'}
+              className="w-full"
             >
-              <EffectSelector 
-                value={effect}
-                onChange={(value) => onEffectChange(value as Effect)}
-              />
-              
-              <Button 
-                onClick={onProcess}
-                disabled={effect === 'none'}
-                className="w-full"
-              >
-                <Wand2 className="mr-2 h-4 w-4" />
-                Apply Effect
-              </Button>
-            </motion.div>
-          </div>
-        )}
-      </div>
-    </motion.div>
+              <Wand2 className="mr-2 h-4 w-4" />
+              Apply Effect
+            </Button>
+          </motion.div>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -241,62 +235,53 @@ function ProcessingStage({
   onCancel: () => void
 }) {
   return (
-    <motion.div
-      variants={fadeVariants}
-      initial="enter"
-      animate="center"
-      exit="exit"
-      transition={{
-        opacity: { duration: 0.2 }
-      }}
-      className="absolute w-full"
-    >
-      <div className="space-y-6">
+    <div className="space-y-6">
+      <div className={VIDEO_CONTAINER_CLASS}>
         <LoadingAnimation />
-        
-        <motion.div 
-          className="space-y-4"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          {isUploading ? (
-            <div className="space-y-2">
-              <Progress value={uploadProgress} />
-              <p className="text-sm text-center text-muted-foreground">
-                Uploading: {Math.round(uploadProgress)}%
-              </p>
-            </div>
-          ) : (
-            <Card className="p-4">
-              <div className="text-lg font-medium text-center">
-                {mode === 'server' && transformation?.status === 'pending' 
-                  ? 'Video Queued for Processing'
-                  : 'Processing Video'
-                }
-              </div>
-              {mode === 'server' && transformation?.status === 'pending' ? (
-                <p className="text-sm text-muted-foreground text-center mt-2">
-                  Your video is queued and will begin processing shortly...
-                </p>
-              ) : (
-                <>
-                  <ProcessingStats stats={metrics} />
-                </>
-              )}
-            </Card>
-          )}
-          
-          <Button 
-            variant="destructive"
-            onClick={onCancel}
-            className="w-full"
-          >
-            Cancel Processing
-          </Button>
-        </motion.div>
       </div>
-    </motion.div>
+      
+      <motion.div 
+        className="space-y-4"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
+        {isUploading ? (
+          <div className="space-y-2">
+            <Progress value={uploadProgress} />
+            <p className="text-sm text-center text-muted-foreground">
+              Uploading: {Math.round(uploadProgress)}%
+            </p>
+          </div>
+        ) : (
+          <Card className="p-4">
+            <div className="text-lg font-medium text-center">
+              {mode === 'server' && transformation?.status === 'pending' 
+                ? 'Video Queued for Processing'
+                : 'Processing Video'
+              }
+            </div>
+            {mode === 'server' && transformation?.status === 'pending' ? (
+              <p className="text-sm text-muted-foreground text-center mt-2">
+                Your video is queued and will begin processing shortly...
+              </p>
+            ) : (
+              <>
+                <ProcessingStats stats={metrics} />
+              </>
+            )}
+          </Card>
+        )}
+        
+        <Button 
+          variant="destructive"
+          onClick={onCancel}
+          className="w-full"
+        >
+          Cancel Processing
+        </Button>
+      </motion.div>
+    </div>
   )
 }
 
@@ -311,59 +296,49 @@ function CompleteStage({
   onRestart: () => void
 }) {
   return (
-    <motion.div
-      variants={fadeVariants}
-      initial="enter"
-      animate="center"
-      exit="exit"
-      transition={{
-        opacity: { duration: 0.2 }
-      }}
-      className="absolute w-full"
-    >
-      <div className="space-y-6">
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.3 }}
+    <div className="space-y-6">
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.3 }}
+        className={VIDEO_CONTAINER_CLASS}
+      >
+        <video 
+          src={videoUrl} 
+          controls 
+          className="w-full h-full object-contain"
+        />
+      </motion.div>
+      
+      <motion.div 
+        className="flex gap-4"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
+        <Button 
+          onClick={() => {
+            const link = document.createElement('a')
+            link.href = videoUrl
+            link.download = `transformed-${originalFileName}`
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+          }}
+          className="flex-1"
         >
-          <video 
-            src={videoUrl} 
-            controls 
-            className="w-full rounded-lg aspect-video"
-          />
-        </motion.div>
+          Download Video
+        </Button>
         
-        <motion.div 
-          className="flex gap-4"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
+        <Button 
+          onClick={onRestart}
+          variant="outline"
+          className="flex-1"
         >
-          <Button 
-            onClick={() => {
-              const link = document.createElement('a')
-              link.href = videoUrl
-              link.download = `transformed-${originalFileName}`
-              document.body.appendChild(link)
-              link.click()
-              document.body.removeChild(link)
-            }}
-            className="flex-1"
-          >
-            Download Video
-          </Button>
-          
-          <Button 
-            onClick={onRestart}
-            variant="outline"
-            className="flex-1"
-          >
-            Start New Transform
-          </Button>
-        </motion.div>
-      </div>
-    </motion.div>
+          Start New Transform
+        </Button>
+      </motion.div>
+    </div>
   )
 }
 
@@ -396,6 +371,9 @@ export default function VideoProcessor() {
   // FFmpeg initialization
   const ffmpegRef = useRef<FFmpeg | null>(null)
   const { toast } = useToast()
+
+  // Add loading state
+  const [isFFmpegReady, setIsFFmpegReady] = useState(false)
 
   const goToStage = (newStage: ProcessingStage) => {
     if (newStage === 'upload') {
@@ -482,14 +460,87 @@ export default function VideoProcessor() {
     });
   };
 
+  const initFFmpeg = useCallback(async () => {
+    try {
+      if (ffmpegRef.current) {
+        setIsFFmpegReady(true)
+        return
+      }
+
+      const ffmpeg = new FFmpeg()
+      const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd'
+      
+      ffmpeg.on('progress', (event) => {
+        const progressValue = Math.min(100, Math.max(0, Math.round(event.progress * 100)))
+        setProcessingMetrics(prev => ({
+          type: 'client',
+          progress: progressValue,
+          time: String(event.time || '00:00:00')
+        }))
+      })
+
+      // Load FFmpeg first
+      await ffmpeg.load({
+        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm')
+      })
+
+      ffmpegRef.current = ffmpeg
+      setIsFFmpegReady(true)
+    } catch (error) {
+      console.error('Error initializing FFmpeg:', error)
+      toast({ 
+        title: "Error", 
+        description: "Failed to initialize video processor" 
+      })
+      setIsFFmpegReady(false)
+    }
+  }, [toast])
+
+  // Update the useEffect to handle the initialization
+  useEffect(() => {
+    const loadFFmpeg = async () => {
+      if (!ffmpegRef.current) {
+        await initFFmpeg()
+      }
+    }
+    loadFFmpeg()
+  }, [initFFmpeg])
+
   const processVideo = async () => {
     if (!video) return
     
+    // Reset metrics before starting new transformation
+    setProcessingMetrics({
+      type: mode === 'client' ? 'client' : 'server',
+      progress: 0,
+      time: '00:00:00',
+      ...(mode === 'server' && {
+        fps: 0,
+        speed: 0,
+        frames: 0,
+        size: 0
+      })
+    })
+    
+    if (mode === 'client' && (!ffmpegRef.current || !isFFmpegReady)) {
+      try {
+        await initFFmpeg()
+      } catch (error) {
+        toast({ 
+          title: "Error", 
+          description: "FFmpeg failed to initialize. Please try again.",
+          variant: "destructive"
+        })
+        return
+      }
+    }
+
     goToStage('processing')
     setIsProcessing(true)
     
     if (mode === 'client') {
-      if (!ffmpegRef.current) {
+      if (!ffmpegRef.current || !isFFmpegReady) {  // Check both conditions
         toast({ 
           title: "Error", 
           description: "FFmpeg is not ready. Please try again.",
@@ -579,43 +630,6 @@ export default function VideoProcessor() {
     goToStage('upload')
   }, [resetState])
 
-  const initFFmpeg = useCallback(async () => {
-    try {
-      const ffmpeg = new FFmpeg()
-      const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd'
-      
-      ffmpeg.on('progress', (event) => {
-        const progressValue = Math.min(100, Math.max(0, Math.round(event.progress * 100)))
-        
-        setProcessingMetrics(prev => ({
-          type: 'client',
-          progress: progressValue,
-          time: String(event.time || '00:00:00')
-        }))
-      })
-      
-      await ffmpeg.load({
-        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm')
-      })
-      
-      ffmpegRef.current = ffmpeg
-    } catch (error) {
-      console.error('Error initializing FFmpeg:', error)
-      toast({ 
-        title: "Error", 
-        description: "Failed to initialize video processor" 
-      })
-    }
-  }, [toast])
-
-  // Initialize FFmpeg for client-side processing
-  useEffect(() => {
-    if (!ffmpegRef.current) {
-      initFFmpeg()
-    }
-  }, [initFFmpeg])
-
   // Subscribe to server-side transformation updates
   useEffect(() => {
     if (mode === 'server' && transformation) {
@@ -679,12 +693,18 @@ export default function VideoProcessor() {
       />
 
       <ProcessingDescription 
-          type={mode}
-        />
+        type={mode}
+      />
 
-      <div className="relative h-[500px]">
-        <AnimatePresence mode="wait">
-          {stage === 'upload' && (
+      <AnimatePresence mode="wait">
+        {stage === 'upload' && (
+          <motion.div
+            variants={fadeVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ opacity: { duration: 0.2 } }}
+          >
             <UploadStage 
               onFileSelect={handleFileSelect}
               mode={mode}
@@ -693,9 +713,17 @@ export default function VideoProcessor() {
               onEffectChange={setEffect}
               onProcess={processVideo}
             />
-          )}
-          
-          {stage === 'processing' && (
+          </motion.div>
+        )}
+        
+        {stage === 'processing' && (
+          <motion.div
+            variants={fadeVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ opacity: { duration: 0.2 } }}
+          >
             <ProcessingStage 
               mode={mode}
               metrics={processingMetrics}
@@ -704,17 +732,25 @@ export default function VideoProcessor() {
               transformation={transformation}
               onCancel={handleCancel}
             />
-          )}
-          
-          {stage === 'complete' && processedVideoUrl && video && (
+          </motion.div>
+        )}
+        
+        {stage === 'complete' && processedVideoUrl && video && (
+          <motion.div
+            variants={fadeVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ opacity: { duration: 0.2 } }}
+          >
             <CompleteStage 
               videoUrl={processedVideoUrl}
               originalFileName={video.name}
               onRestart={handleRestart}
             />
-          )}
-        </AnimatePresence>
-        </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Card>
   )
 }
