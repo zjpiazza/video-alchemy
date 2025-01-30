@@ -56,7 +56,7 @@ export default async function LandingPage() {
           <CardContent className="pt-4 text-muted-foreground">
             <p>
               Allows you to run FFmpeg directly in your browser. 
-              It's pretty neat, but you will have some serious performance limitations compared to running it natively.
+              It&apos;s pretty neat, but you will have some serious performance limitations compared to running it natively.
               If you need more power, you can use server-side processing feature.
             </p>
           </CardContent>
@@ -76,7 +76,7 @@ export default async function LandingPage() {
               We use Supabase for the backend for this project. 
               Although Supabase is fantastic, there are some limitations to it.
               Edge functions are extremely limited in terms of compute resources.
-              That's why we use trigger.dev to run the FFmpeg commands.
+              That&apos;s why we use trigger.dev to run the FFmpeg commands.
             </p>
           </CardContent>
         </Card>
@@ -85,7 +85,7 @@ export default async function LandingPage() {
       {/* Simple Tech Stack */}
       <section className="max-w-3xl mx-auto text-center space-y-6">
         <p className="text-sm text-muted-foreground">
-          Built with Next.js, Supabase, trigger.dev, ffmpeg.wasm, and a sprinkle of magic ✨
+          Built with Next.js, Supabase, trigger.dev, ffmpeg.wasm, and a dash of dark magic 🧪
         </p>
         <p className="text-sm text-muted-foreground">
           {user?.email}

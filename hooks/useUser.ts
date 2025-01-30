@@ -2,7 +2,6 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { createClient } from '@/utils/supabase/client'
-import type { User } from '@supabase/supabase-js'
 
 const supabase = createClient()
 
@@ -12,7 +11,7 @@ export const DEFAULT_QUOTA = {
 }
 
 export function useUser() {
-  return useQuery<User | null>({
+  return useQuery({
     queryKey: ['user'],
     queryFn: async () => {
       const { data: { session } } = await supabase.auth.getSession()

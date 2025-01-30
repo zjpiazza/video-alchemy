@@ -2,7 +2,6 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { createClient } from '@/utils/supabase/client'
-import type { User } from '@supabase/supabase-js'
 
 const supabase = createClient()
 
@@ -18,10 +17,11 @@ export const DEFAULT_QUOTA: UserQuota = {
 }
 
 
-export function useUserQuota(user: User | null) {
-  return useQuery<UserQuota>({
+export function useUserQuota(user: any) {
+  return useQuery({
     queryKey: ['quota', user?.id],
     queryFn: async () => {
+
       if (!user?.id) return DEFAULT_QUOTA
       
       const { data, error } = await supabase
