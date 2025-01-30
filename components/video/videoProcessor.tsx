@@ -102,7 +102,6 @@ function ProcessingModeSelector({
         value={mode}
         onValueChange={(value) => onModeChange(value as ProcessingMode)}
         className="mb-6"
-        disabled={disabled}
       >
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger 
@@ -366,7 +365,7 @@ interface VideoProcessorProps {
   serverProcessingEnabled: boolean
 }
 
-export default function VideoProcessor({ serverProcessingEnabled }: VideoProcessorProps) {
+export function VideoProcessor({ serverProcessingEnabled }: VideoProcessorProps) {
   const [stage, setStage] = useState<ProcessingStage>('upload')
   const [mode, setMode] = useState<ProcessingMode>('client')
   const [video, setVideo] = useState<File | null>(null)
@@ -399,12 +398,45 @@ export default function VideoProcessor({ serverProcessingEnabled }: VideoProcess
   // Add loading state
   const [isFFmpegReady, setIsFFmpegReady] = useState(false)
 
-  const goToStage = (newStage: ProcessingStage) => {
+  const resetState = useCallback(() => {
+    setVideo(null)
+    setPreviewUrl(null)
+    setEffect('none')
+    setProcessedVideoUrl(null)
+    setProcessingMetrics(mode === 'client' 
+      ? {
+          type: 'client',
+          progress: 0,
+          time: '00:00:00'
+        }
+      : {
+          type: 'server',
+          progress: 0,
+          time: '00:00:00',
+          fps: 0,
+          speed: 0,
+          frames: 0,
+          size: 0
+        }
+    )
+    setTransformation(null)
+    setIsUploading(false)
+    setIsProcessing(false)
+    setUploadProgress({
+      bytesUploaded: 0,
+      bytesTotal: 0,
+      percentage: 0
+    })
+  }, [mode])
+
+  const goToStage = useCallback((newStage: ProcessingStage) => {
     if (newStage === 'upload') {
       resetState()
     }
     setStage(newStage)
-  }
+  }, [resetState])
+
+  
 
   const handleModeChange = (newMode: ProcessingMode) => {
     // Force client mode if server processing is not enabled
@@ -427,25 +459,7 @@ export default function VideoProcessor({ serverProcessingEnabled }: VideoProcess
     }
   }, [serverProcessingEnabled, mode])
 
-  const resetState = useCallback(() => {
-    setVideo(null)
-    setPreviewUrl(null)
-    setEffect('none')
-    setProcessedVideoUrl(null)
-    setProcessingMetrics({
-      type: 'client',
-      progress: 0,
-      time: '00:00:00'
-    })
-    setTransformation(null)
-    setIsUploading(false)
-    setIsProcessing(false)
-    setUploadProgress({
-      bytesUploaded: 0,
-      bytesTotal: 0,
-      percentage: 0
-    })
-  }, [])
+
 
   const handleFileSelect = useCallback((file: File) => {
     setVideo(file)
@@ -561,17 +575,22 @@ export default function VideoProcessor({ serverProcessingEnabled }: VideoProcess
     }
 
     // Reset metrics before starting new transformation
-    setProcessingMetrics({
-      type: mode === 'client' ? 'client' : 'server',
-      progress: 0,
-      time: '00:00:00',
-      ...(mode === 'server' && {
-        fps: 0,
-        speed: 0,
-        frames: 0,
-        size: 0
-      })
-    })
+    setProcessingMetrics(mode === 'client' 
+      ? {
+          type: 'client',
+          progress: 0,
+          time: '00:00:00'
+        }
+      : {
+          type: 'server',
+          progress: 0,
+          time: '00:00:00',
+          fps: 0,
+          speed: 0,
+          frames: 0,
+          size: 0
+        }
+    )
     
     goToStage('processing')
     setIsProcessing(true)
@@ -671,22 +690,21 @@ export default function VideoProcessor({ serverProcessingEnabled }: VideoProcess
   // Subscribe to server-side transformation updates
   useEffect(() => {
     if (mode === 'server' && transformation) {
-      console.log('Setting up subscription for transformation:', transformation.id) // Debug log
+      console.log('Setting up subscription for transformation:', transformation.id)
 
       const channel = supabase
-        .channel(`transformation-${transformation.id}`) // Give unique channel name
+        .channel(`transformation-${transformation.id}`)
         .on('postgres_changes', {
-          event: '*', // Listen to all events to debug
+          event: '*',
           schema: 'public',
           table: 'transformations',
           filter: `id=eq.${transformation.id}`,
         }, async (payload: any) => {
-          console.log('Received update:', payload) // Debug log
+          console.log('Received update:', payload)
           
           const newStatus = payload.new as TransformationStatus
           setTransformation(newStatus)
           
-          // Update processing metrics from transformation status
           if (newStatus.status === 'processing') {
             setProcessingMetrics({
               type: 'server',
@@ -711,16 +729,16 @@ export default function VideoProcessor({ serverProcessingEnabled }: VideoProcess
           }
         })
 
-      channel.subscribe((status) => {
-        console.log('Subscription status:', status) // Debug log
+      channel.subscribe((status: { status: string }) => {
+        console.log('Subscription status:', status)
       })
 
       return () => {
-        console.log('Cleaning up subscription') // Debug log
+        console.log('Cleaning up subscription')
         supabase.removeChannel(channel)
       }
     }
-  }, [mode, transformation?.id, supabase, goToStage])
+  }, [mode, transformation, supabase, goToStage])
 
   return (
     <Card className="p-6">
@@ -728,7 +746,6 @@ export default function VideoProcessor({ serverProcessingEnabled }: VideoProcess
         mode={mode}
         onModeChange={handleModeChange}
         serverDisabled={!serverProcessingEnabled}
-        disabled={stage !== 'upload'}
       />
 
       <ProcessingDescription 

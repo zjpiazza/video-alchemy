@@ -2,9 +2,11 @@
 import { createClient } from '@/utils/supabase/client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import type { User } from '@supabase/supabase-js'
+import type { Session, User, AuthChangeEvent } from '@supabase/auth-js'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { Logo } from '@/components/logo'
+
+
 
 interface UserQuota {
   total_size_bytes: number
@@ -37,8 +39,10 @@ export default function Navbar() {
   }
 
   useEffect(() => {
+    const supabaseAuth = supabase.auth
+
     // Initial auth check
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabaseAuth.getSession().then(({ data: { session } }: { data: { session: Session } }) => {
       setUser(session?.user ?? null)
       if (session?.user) {
         fetchQuota(session.user.id)
@@ -49,7 +53,7 @@ export default function Navbar() {
     // Set up auth state listener
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabaseAuth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
       setUser(session?.user ?? null)
       if (session?.user) {
         fetchQuota(session.user.id)
@@ -59,7 +63,7 @@ export default function Navbar() {
     })
 
     return () => subscription.unsubscribe()
-  }, [])
+  }, [supabase.auth, fetchQuota])
 
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return '0 GB'

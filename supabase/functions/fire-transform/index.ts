@@ -1,12 +1,17 @@
 // Setup type definitions for built-in Supabase Runtime APIs
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+// @ts-ignore
+// TODO: Fix this
 import { tasks } from "npm:@trigger.dev/sdk@latest/v3";
 // Import the videoProcessAndUpdate task from the trigger folder
 import type { videoTransform } from "../../../trigger/transformVideo.js";
 
 
 
+
 // Sets up a Deno server that listens for incoming JSON requests
+// @ts-ignore
+// TODO: Fix this
 Deno.serve(async (req) => {
   const payload = await req.json();
 
