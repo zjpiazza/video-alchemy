@@ -1,6 +1,6 @@
 // @ts-ignore
 // TODO: Fix this?
-import { createClient } from "@supabase/supabase-js"
+import { createClient } from "@/utils/supabase/client"
 import ffmpeg from "fluent-ffmpeg"
 import fs from "fs"
 import path from "path"
@@ -37,10 +37,7 @@ export const videoTransform = task({
         const { videoPath, transformations, transformationId } = payload;
 
         // Initialize Supabase client once
-        const supabase = createClient<Database>(
-            process.env.SUPABASE_PROJECT_URL as string,
-            process.env.SUPABASE_SERVICE_ROLE_KEY as string
-        );
+        const supabase = createClient()
 
         logger.log(`Downloading video: ${videoPath}`);
 
