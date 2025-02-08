@@ -5,36 +5,38 @@ import ffmpeg from "fluent-ffmpeg"
 import fs from "fs"
 import path from "path"
 import { Database } from "../database.types"
-import { logger, task } from "@trigger.dev/sdk/v3"
+import { logger } from "@trigger.dev/sdk/v3"
 import os from "os"
+import { schemaTask } from "@trigger.dev/sdk/v3";
+import { z } from "zod"
+import { updateStatus } from "@/lib/metadataStore";
+import { TransformVideoStatus } from "@/lib/metadataStore";
+import { FFmpegProgress } from "@/lib/metadataStore";
+
+
 
 interface TransformationOptions {
     effect: 'none' | 'sepia' | 'grayscale' | 'vignette' | 'blur'
 }
 
-interface FFmpegProgress {
-    /** Total number of frames processed */
-    frames: number;
-    /** Current processing frame rate */
-    currentFps: number;
-    /** Current processing throughput in kbps */
-    currentKbps: number;
-    /** Current size of target file in kilobytes */
-    targetSize: number;
-    /** Timestamp of current frame in seconds */
-    timemark: string;
-    /** Estimated progress percentage */
-    percent?: number;
-}
 
-export const videoTransform = task({
+
+
+export const transformVideo = schemaTask({
     id: "video-transform",
+    schema: z.object({
+        transformationId: z.string(),
+        videoPath: z.string(),
+        transformations: z.object({
+            effect: z.enum(['none', 'sepia', 'grayscale', 'vignette', 'blur'])
+        })
+    }),
     run: async (payload: {
         transformationId: string;
         videoPath: string;
         transformations: TransformationOptions;
     }) => {
-        const { videoPath, transformations, transformationId } = payload;
+        const { transformationId, videoPath, transformations } = payload;
 
         // Initialize Supabase client once
         const supabase = createClient<Database>(
@@ -100,30 +102,24 @@ export const videoTransform = task({
                 .on('start', () => {
                     logger.log('FFmpeg processing started');
                 })
-                .on('progress', async (progress: FFmpegProgress) => {
+                .on('progress', async (progress: {
+                    frames: number;
+                    currentFps: number;
+                    currentKbps: number;
+                    targetSize: number;
+                    timemark: string;
+                    percent?: number;
+                }) => {
                     const now = Date.now();
                     if (now - lastLogTime >= THROTTLE_INTERVAL) {
                         try {
-                            logger.log('Updating database with progress...');
-                            const { error } = await supabase
-                                .from('transformations')
-                                .update({
-                                    status: 'processing',
-                                    progress: progress.percent || 0,
-                                    frames: progress.frames || 0,
-                                    fps: progress.currentFps || 0,
-                                    speed: progress.currentKbps || 0,
-                                    time: progress.timemark || '00:00:00',
-                                    size: progress.targetSize || 0
-                                })
-                                .eq('id', transformationId);
-
-                            if (error) {
-                                logger.error('Failed to update progress:', error);
-                            } else {
-                                logger.log('Progress update successful');
-                            }
-
+                            updateStatus({
+                                state: "running",
+                                label: `Processing: ${progress.percent || 0}%`,
+                                progress: progress.percent || 0,
+                                ...progress,
+                                percent: progress.percent || 0
+                            });
                             lastLogTime = now;
                         } catch (error: any) {
                             logger.error('Error updating progress:', error);

@@ -4,7 +4,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 // TODO: Fix this
 import { tasks } from "npm:@trigger.dev/sdk@latest/v3";
 // Import the videoProcessAndUpdate task from the trigger folder
-import type { videoTransform } from "../../../trigger/transformVideo.js";
+import type { videoTransform } from "../../../trigger/tasks.js";
 
 
 

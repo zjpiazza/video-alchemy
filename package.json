@@ -44,7 +44,8 @@
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.48.1",
     "@tanstack/react-query": "^5.65.1",
-    "@trigger.dev/sdk": "^3.3.12",
+    "@trigger.dev/react-hooks": "^3.3.13",
+    "@trigger.dev/sdk": "3.3.13",
     "@types/uuid": "^10.0.0",
     "animejs": "^3.2.2",
     "autoprefixer": "10.4.17",
@@ -79,7 +80,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@trigger.dev/build": "^3.3.12",
+    "@trigger.dev/build": "3.3.13",
     "@types/fluent-ffmpeg": "^2.1.27",
     "@types/node": "20.11.5",
     "@types/react": "18.2.48",
