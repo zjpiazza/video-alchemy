@@ -1,0 +1,130 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Transformation record - stores information about each video transformation
+model Transformation {
+  id              String   @id @default(cuid())
+  
+  clerkUserId     String   // Foreign key to Clerk user
+  name            String   // User-provided name for the transformation
+  originalName    String   // Original filename
+  inputUrl        String?  // URL to the input video (could be S3/R2/etc.)
+  outputUrl       String?  // URL to the transformed video
+  thumbnailUrl    String?  // URL to the thumbnail image
+  status          TransformationStatus @default(PENDING)
+  triggerRunId    String?
+  errorMessage    String?  // Error message if status is FAILED
+  
+  // Metadata
+  fileSize        Int?     // Size in bytes
+  duration        Float?   // Duration in seconds
+  width           Int?     // Width in pixels
+  height          Int?     // Height in pixels
+  format          String?  // Video format (mp4, webm, etc.)
+  
+  // Transformation details
+  effectId        String   // ID of the effect used
+  effectParams    Json     // Parameters for the effect (e.g., resize dimensions)
+  processingMode  ProcessingMode // CLIENT or SERVER
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  completedAt     DateTime?
+
+  // Relations
+  effect          Effect   @relation(fields: [effectId], references: [id])
+
+  @@index([clerkUserId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Predefined effects available in the application
+model Effect {
+  id               String   @id @default(cuid())
+  name             String
+  description      String
+  icon             String   // Icon name (e.g., "resize", "compress")
+  category         EffectCategory
+  clientSupported  Boolean  @default(true)
+  serverSupported  Boolean  @default(true)
+  defaultParams    Json     // Default parameters for this effect
+  
+  // Relations
+  transformations  Transformation[]
+
+  @@unique([name])
+}
+
+// User preferences and settings
+model UserSettings {
+  id                String   @id @default(cuid())
+  clerkUserId       String   @unique
+  defaultProcessingMode ProcessingMode @default(CLIENT)
+  theme             String   @default("system") // "light", "dark", "system"
+  emailNotifications Boolean  @default(true)
+  browserNotifications Boolean @default(true)
+  
+  // Timestamps
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+
+// Saved presets for quick access to frequently used transformations
+model TransformationPreset {
+  id              String   @id @default(cuid())
+  clerkUserId     String
+  name            String
+  description     String?
+  effectId        String
+  effectParams    Json
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([clerkUserId])
+}
+
+// Enums
+enum TransformationStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELED
+}
+
+enum ProcessingMode {
+  CLIENT
+  SERVER
+}
+
+enum EffectCategory {
+  FILTER
+  RESIZE
+  TRIM
+  CONVERT
+  AUDIO
+  ADVANCED
+}
+
+model Quota {
+  id                  String   @id @default(cuid())
+  clerkUserId         String   @unique
+  usedTransformations Int      @default(0)
+  totalTransformations Int     @default(50)
+  usedStorageGb       Int      @default(0)
+  totalStorageGb      Int      @default(5)
+}

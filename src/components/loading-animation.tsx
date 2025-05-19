@@ -1,13 +1,6 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-// Dynamic import for anime.js to avoid SSR issues
-import dynamic from "next/dynamic"
-
-// Dynamically import anime.js only on client side
-const anime = dynamic(() => import("animejs").then((mod) => mod.default), {
-  ssr: false,
-})
 
 interface LoadingAnimationProps {
   showText?: boolean
@@ -36,90 +29,99 @@ export function LoadingAnimation({ showText = true }: LoadingAnimationProps) {
   }, [showText])
 
   useEffect(() => {
-    if (svgRef.current && typeof anime !== "undefined") {
-      try {
-        // Animate bubbles with more pronounced movement
-        anime({
-          targets: ".bubble",
-          translateY: (el: Element) => {
-            const baseDistance = -25 // Increased distance
-            const scale = Number.parseFloat(el.getAttribute("data-scale") || "1")
-            return [0, baseDistance * scale]
-          },
-          opacity: [0.8, 0], // Start more visible
-          easing: "easeInOutSine",
-          duration: () => anime.random(1000, 1600), // Slower bubbles
-          delay: anime.stagger(150), // Faster stagger
-          loop: true,
-        })
+    if (svgRef.current && typeof window !== "undefined") {
+      import("animejs").then((animeModule) => {
+        try {
+          // Animate bubbles with more pronounced movement
+          animeModule.animate(
+            ".bubble",
+            {
+              translateY: (target, index, length) => {
+                const el = target as Element;
+                const baseDistance = -25; // Increased distance
+                const scale = Number.parseFloat(el.getAttribute("data-scale") || "1");
+                return [0, baseDistance * scale];
+              },
+              opacity: [0.8, 0], // Start more visible
+              easing: "easeInOutSine",
+              duration: () => animeModule.utils.random(1000, 1600), // Slower bubbles
+              delay: animeModule.stagger(150), // Faster stagger
+              loop: true,
+            }
+          );
 
-        // Enhanced liquid sloshing effect
-        const liquidTimeline = anime.timeline({
-          loop: true,
-          direction: "alternate",
-          easing: "easeInOutSine",
-          duration: 1000, // Consistent timing
-        })
+          // Enhanced liquid sloshing effect
+          const liquidTimeline = animeModule.createTimeline({ loop: true });
+          const liquidPaths = [
+            "M20,85 C20,85 25,60 40,60 C55,60 60,85 60,85 Q60,90 40,90 Q20,90 20,85 Z",
+            "M20,85 C20,85 30,62 40,58 C50,55 60,82 60,85 Q60,90 40,90 Q20,90 20,85 Z",
+            "M20,85 C20,82 30,55 40,58 C50,62 60,85 60,85 Q60,90 40,90 Q20,90 20,85 Z",
+            "M20,85 C20,85 25,63 40,65 C55,63 60,85 60,85 Q60,90 40,90 Q20,90 20,85 Z",
+          ];
+          liquidPaths.forEach((path, index) => {
+            liquidTimeline.add(
+              ".liquid",
+              {
+                d: path,
+                duration: 800,
+                endDelay: index === liquidPaths.length - 1 ? 200 : 0,
+                easing: "easeInOutSine",
+                direction: "alternate",
+              }
+            );
+          });
 
-        const liquidPaths = [
-          "M20,85 C20,85 25,60 40,60 C55,60 60,85 60,85 Q60,90 40,90 Q20,90 20,85 Z",
-          "M20,85 C20,85 30,62 40,58 C50,55 60,82 60,85 Q60,90 40,90 Q20,90 20,85 Z",
-          "M20,85 C20,82 30,55 40,58 C50,62 60,85 60,85 Q60,90 40,90 Q20,90 20,85 Z",
-          "M20,85 C20,85 25,63 40,65 C55,63 60,85 60,85 Q60,90 40,90 Q20,90 20,85 Z",
-        ]
+          // Enhanced flask movement with more pronounced swaying
+          const flaskTimeline = animeModule.createTimeline({ loop: true });
+          flaskTimeline
+            .add(
+              ".flask-container",
+              {
+                rotate: [-4, 4], // More rotation
+                translateX: [-4, 4], // More movement
+                duration: 1200,
+                delay: 200,
+                easing: "easeInOutQuad",
+              }
+            )
+            .add(
+              ".flask-container",
+              {
+                rotate: [4, -4],
+                translateX: [4, -4],
+                duration: 1200,
+                easing: "easeInOutQuad",
+              }
+            )
+            .add(
+              ".flask-container",
+              {
+                rotate: 0,
+                translateX: 0,
+                duration: 1000,
+                easing: "easeInOutQuad",
+              }
+            );
 
-        liquidPaths.forEach((path, index) => {
-          liquidTimeline.add({
-            targets: ".liquid",
-            d: path,
-            duration: 800,
-            endDelay: index === liquidPaths.length - 1 ? 200 : 0,
-          })
-        })
-
-        // Enhanced flask movement with more pronounced swaying
-        const flaskTimeline = anime.timeline({
-          loop: true,
-          easing: "easeInOutQuad",
-        })
-
-        flaskTimeline
-          .add({
-            targets: ".flask-container",
-            rotate: [-4, 4], // More rotation
-            translateX: [-4, 4], // More movement
-            duration: 1200,
-            delay: 200,
-          })
-          .add({
-            targets: ".flask-container",
-            rotate: [4, -4],
-            translateX: [4, -4],
-            duration: 1200,
-          })
-          .add({
-            targets: ".flask-container",
-            rotate: 0,
-            translateX: 0,
-            duration: 1000,
-          })
-
-        // Add sparkle animation
-        anime({
-          targets: ".fill-primary\\/30", // Target sparkles
-          opacity: [0.2, 0.6],
-          scale: [1, 1.2],
-          easing: "easeInOutSine",
-          duration: 1500,
-          delay: anime.stagger(200),
-          direction: "alternate",
-          loop: true,
-        })
-      } catch (error) {
-        console.error("Error initializing animations:", error)
-      }
+          // Add sparkle animation
+          animeModule.animate(
+            ".sparkle", // Target sparkles
+            {
+              opacity: [0.2, 0.6],
+              scale: [1, 1.2],
+              easing: "easeInOutSine",
+              duration: 1500,
+              delay: animeModule.stagger(200),
+              direction: "alternate",
+              loop: true,
+            }
+          );
+        } catch (error) {
+          console.error("Error initializing animations:", error);
+        }
+      });
     }
-  }, [])
+  }, []);
 
   return (
     <div className="aspect-video w-full bg-card/50 rounded-lg flex items-center justify-center">
@@ -174,9 +176,9 @@ export function LoadingAnimation({ showText = true }: LoadingAnimationProps) {
               </g>
 
               {/* Sparkles */}
-              <circle cx="48" cy="45" r="1" className="fill-primary/30" />
-              <circle cx="53" cy="50" r="0.8" className="fill-primary/30" />
-              <circle cx="46" cy="55" r="1.2" className="fill-primary/30" />
+              <circle cx="48" cy="45" r="1" className="fill-primary/30 sparkle" />
+              <circle cx="53" cy="50" r="0.8" className="fill-primary/30 sparkle" />
+              <circle cx="46" cy="55" r="1.2" className="fill-primary/30 sparkle" />
             </g>
           </svg>
         </div>
